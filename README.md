@@ -1,5 +1,9 @@
 # 需求自动分析与导入 PingCode Agent 工具
 
+基于 AI 的需求文档自动分析与导入 PingCode 的智能助手工具。
+
+**GitHub**: [https://github.com/knqiufan/pingcode-agent](https://github.com/knqiufan/pingcode-agent)
+
 ## 架构
 - **前端**: Vue 3 + TypeScript + Element Plus (Vite)
 - **后端**: Node.js + Express
@@ -14,6 +18,12 @@
 - OpenAI (或兼容) API Key
 
 ## 安装与设置
+
+通过 Git 克隆项目：
+```bash
+git clone https://github.com/knqiufan/pingcode-agent.git
+cd pingcode-agent
+```
 
 1. **安装依赖**
    请使用 `pnpm` 安装依赖：
