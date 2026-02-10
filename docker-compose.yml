@@ -1,0 +1,11 @@
+version: '3'
+services:
+  seekdb:
+    image: oceanbase/seekdb:latest
+    ports:
+      - "2881:2881"
+      - "2886:2886"
+    volumes:
+      - ./seekdb_data:/var/lib/oceanbase
+    environment:
+      - OB_ROOT_PASSWORD=
