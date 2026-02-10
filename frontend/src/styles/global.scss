@@ -1,0 +1,85 @@
+@use './variables.scss' as *;
+
+/* ===== 重置与基础 ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-size: $font-size-base;
+  color: $text-primary;
+  background-color: $bg-base;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Element Plus 主题覆盖 ===== */
+
+/* 按钮 */
+.el-button {
+  border-radius: $border-radius !important;
+}
+
+/* 输入框 */
+.el-input__wrapper {
+  border-radius: $border-radius !important;
+}
+
+/* 卡片 */
+.el-card {
+  border-radius: $border-radius !important;
+  border: 1px solid $border-color-light !important;
+  box-shadow: $shadow-sm !important;
+}
+.el-card__header {
+  padding: 12px $spacing-md !important;
+  border-bottom: 1px solid $border-color-light !important;
+}
+
+/* 对话框 */
+.el-dialog {
+  border-radius: $border-radius !important;
+}
+
+/* 表格 */
+.el-table {
+  border-radius: $border-radius !important;
+}
+.el-table th.el-table__cell {
+  background-color: $bg-section !important;
+  color: $text-secondary !important;
+  font-weight: 600 !important;
+}
+
+/* 标签 */
+.el-tag {
+  border-radius: $border-radius-sm !important;
+}
+
+/* 选择器 */
+.el-select__wrapper {
+  border-radius: $border-radius !important;
+}
+
+/* 提示框 */
+.el-alert {
+  border-radius: $border-radius !important;
+}
+
+/* 上传 */
+.el-upload-dragger {
+  border-radius: $border-radius !important;
+}
+
+/* 全局禁用 hover 效果（仅针对主题的额外 hover 样式） */
+/* 保留按钮的交互反馈，但不做颜色变化以外的特殊 hover */

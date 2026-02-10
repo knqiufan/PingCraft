@@ -1,0 +1,54 @@
+/* ===== 设计规范变量 ===== */
+/* 浅色科技风格：禁用 emoji、禁用渐变色、禁用大于 6px 圆角、禁用 hover 效果 */
+
+/* 主色调 */
+$primary-color: #1890ff;
+$primary-light: #e6f4ff;
+$primary-dark: #096dd9;
+
+/* 语义色 */
+$success-color: #52c41a;
+$warning-color: #faad14;
+$error-color: #f5222d;
+$info-color: #1890ff;
+
+/* 文字色 */
+$text-primary: #262626;
+$text-secondary: #595959;
+$text-tertiary: #8c8c8c;
+$text-placeholder: #bfbfbf;
+
+/* 边框 */
+$border-color: #d9d9d9;
+$border-color-light: #e8e8e8;
+
+/* 背景 */
+$bg-base: #f0f2f5;
+$bg-card: #ffffff;
+$bg-section: #fafafa;
+
+/* 圆角 */
+$border-radius: 4px;
+$border-radius-sm: 2px;
+
+/* 阴影 */
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+$shadow-base: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+/* 间距 */
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+/* 字号 */
+$font-size-sm: 12px;
+$font-size-base: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 20px;
+$font-size-xxl: 24px;
+
+/* 布局 */
+$header-height: 56px;
+$content-max-width: 1200px;
