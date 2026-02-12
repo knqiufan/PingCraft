@@ -1,8 +1,19 @@
 # PingCode Agent — 需求智能分析与导入
 
-基于 AI 的需求文档自动分析与导入 [PingCode](https://pingcode.com/) 的智能助手。支持上传 Word / Markdown / TXT 需求文档，由大模型提取结构化工作项，并与已同步的 PingCode 项目进行智能匹配与查重，一键导入工作项。
+基于 **AI Agent** 的需求文档自动分析与导入 [PingCode](https://pingcode.com/) 的智能助手。支持上传 Word / Markdown / TXT 需求文档，由大模型提取结构化工作项，并与已同步的 PingCode 项目进行**智能匹配与查重**，一键导入工作项。
 
 **仓库**: [https://github.com/knqiufan/pingcode-agent](https://github.com/knqiufan/pingcode-agent)
+
+---
+
+## Agent 亮点
+
+| 亮点 | 说明 |
+|------|------|
+| **LLM 驱动需求解析** | 使用 LangChain 编排大模型，从非结构化文档中识别多项目、拆分为独立工作项，并输出标题、描述、优先级、预估工时、计划时间、负责人及**解决方案建议**，与 PingCode 工作项类型（story/task/bug/feature/epic）无缝对接。 |
+| **多模型与按用户配置** | 支持 **OpenAI 兼容 API**（含自建/第三方）与 **Anthropic**；在「模型配置」中可添加多套模型、设置默认模型，**按用户维度**选择用于需求分析的 LLM，便于团队混合使用不同厂商与模型。 |
+| **智能项目与工作项匹配** | 分析结果中的项目名称会与已同步的 PingCode 项目做**相似度匹配**（基于 SeekDB 向量能力），推荐最佳目标项目；每条需求与现有工作项做**语义相似度**计算，标记为 **New** 或 **Similar**（并展示相似项与匹配度），减少重复导入。 |
+| **专业 Prompt 与可控输出** | 需求分析采用结构化 Prompt：明确角色（项目管理助手 + 技术顾问）、分析要点（项目识别、需求拆分、优先级与工时评估、负责人识别、解决方案建议）、输出格式与示例，保证 JSON 输出稳定、字段完整，便于后续导入与追溯。 |
 
 ---
 
@@ -30,7 +41,7 @@
 | **前端** | Vue 3、TypeScript、Vite、Element Plus、Pinia、Vue Router |
 | **后端** | Node.js 18+、Express 5、ES Module |
 | **数据库** | [SeekDB](https://www.seekdb.com/)（关系型 + 向量，MySQL/OceanBase 兼容） |
-| **AI** | LangChain、OpenAI 兼容 API、Anthropic（可选） |
+| **AI / Agent** | LangChain 编排、OpenAI 兼容 API、Anthropic（可选）；需求解析与多模型管理由 Agent 服务统一调度 |
 
 后端按 `NODE_ENV` 加载 `backend/.env` 与 `backend/.env.{development|production|test}`；前端通过 Vite 的 `import.meta.env` 读取 `frontend/.env*`。
 
@@ -152,8 +163,8 @@ cd frontend && pnpm dev
 1. **登录**：使用本地账号登录（未注册则先注册）。
 2. **连接 PingCode**：右上角「设置」中填写 PingCode 应用的 Client ID、Client Secret，保存后按提示完成 OAuth 授权。
 3. **同步数据**：点击「Sync Data」，拉取项目与工作项并建立向量索引。
-4. **需求分析**：在「数据同步」页上传需求文档（Word / Markdown / TXT），等待分析结果。
-5. **选择项目与查重**：在目标项目下拉框选择项目，系统会标记每条需求为 New 或 Similar（并展示相似工作项）。
+4. **需求分析**：在「数据同步」页上传需求文档（Word / Markdown / TXT），由 **Agent** 调用 LLM 分析并返回结构化工作项。
+5. **选择项目与查重**：在目标项目下拉框选择项目，系统会基于向量相似度标记每条需求为 New 或 Similar（并展示相似工作项与匹配度）。
 6. **导入**：确认列表无误后点击「Import to PingCode」批量创建工作项。
 
 更多操作说明见 [USER_MANUAL.md](./USER_MANUAL.md)。
