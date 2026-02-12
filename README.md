@@ -40,7 +40,7 @@
 
 - **Node.js** 18+
 - **pnpm**
-- **Docker**（用于运行 SeekDB）
+- **Docker** 与 **Docker Compose**（一键启动 SeekDB + 应用，或开发时仅跑 SeekDB）
 - **PingCode** 应用 Client ID / Client Secret（需在 PingCode 开放平台创建应用并配置回调地址）
 - **LLM**：OpenAI 或兼容接口的 API Key；或 Anthropic API Key（需安装 `@langchain/anthropic`）
 
@@ -162,83 +162,57 @@ cd frontend && pnpm dev
 
 ## 使用 Docker 启动
 
-项目使用 **pnpm** 管理依赖，Dockerfile 内通过 corepack 启用 pnpm 并完成后端依赖安装与前端构建。构建出的镜像**仅运行后端服务**，前端需单独构建并部署（或由 Nginx 等与后端同域提供静态资源）。
+通过 **docker compose** 可一键启动 **SeekDB + 应用（后端 + 前端）**：同一镜像内后端托管前端静态资源，访问单一端口即可使用完整功能。
 
-### 方式一：仅用 Docker 运行 SeekDB（推荐开发时使用）
+### 1. 准备环境变量
 
-后端与前端在本地运行，仅数据库用 Docker 启动：
+编辑 `backend/.env.production`，**至少设置 `JWT_SECRET`**（例如 `JWT_SECRET=your_secure_random_string`）。  
+`SEEKDB_*`、`CORS_ORIGIN`、`FRONTEND_URL` 会由 docker-compose 自动注入；PingCode、LLM 等可在应用启动后于「设置」「模型配置」中再配。
 
-1. **启动 SeekDB**
-
-```bash
-docker-compose up -d
-```
-
-2. 在 `backend/.env.development` 中设置 `SEEKDB_HOST=127.0.0.1`、`SEEKDB_PORT=2881`，然后按上文「安装与配置」在本地执行 `pnpm dev` 启动后端与前端。
-
-### 方式二：用 Docker 运行后端 + SeekDB
-
-适合生产或希望后端也容器化时使用。
-
-1. **启动 SeekDB**
+### 2. 一键启动
 
 在项目根目录执行：
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-2. **准备环境变量**
+首次运行会构建应用镜像（pnpm 安装依赖 + 前端构建），并启动 **seekdb** 与 **app** 两个服务。
 
-在 `backend/.env.production` 中配置好所有生产环境变量，尤其：
+### 3. 访问应用
 
-- **SEEKDB_HOST**：应用在 Docker 中运行时，若 SeekDB 在宿主机或同一台机的 docker-compose 中：
-  - **Windows / macOS**：填 `host.docker.internal`
-  - **Linux**：运行容器时加 `--add-host=host.docker.internal:host-gateway`，或改为宿主机实际 IP
-- 其余必填项：`JWT_SECRET`、`CORS_ORIGIN`、`FRONTEND_URL`、`PINGCODE_REDIRECT_URI`、`PINGCODE_HOST` 等；LLM 相关由用户在「模型配置」中配置，可不在此写死。
+浏览器打开 **http://localhost:3000**，即可使用前端界面与后端 API（同源部署，无需再配接口地址）。  
+首次使用请先注册账号，再在「设置」中配置 PingCode 凭证并完成 OAuth 授权。
 
-3. **构建镜像**
-
-在项目根目录执行：
+### 4. 常用命令
 
 ```bash
-docker build -t pingcode-agent .
+# 查看应用日志
+docker compose logs -f app
+
+# 停止所有服务
+docker compose down
+
+# 仅启动 SeekDB（本地用 pnpm 跑前后端时）
+docker compose up -d seekdb
 ```
 
-4. **运行后端容器**
+### 开发时仅用 Docker 跑 SeekDB
+
+若只在本地用 pnpm 跑前后端，可只启动数据库：
 
 ```bash
-docker run -d \
-  --name pingcode-agent \
-  -p 3000:3000 \
-  --env-file backend/.env.production \
-  pingcode-agent
+docker compose up -d seekdb
 ```
 
-若在 Linux 且 SeekDB 在宿主机，需让容器能解析 `host.docker.internal`：
-
-```bash
-docker run -d \
-  --name pingcode-agent \
-  -p 3000:3000 \
-  --add-host=host.docker.internal:host-gateway \
-  --env-file backend/.env.production \
-  pingcode-agent
-```
-
-5. **前端**
-
-镜像内只跑后端 API（端口 3000）。前端需单独构建并部署：
-
-- 在本地执行 `cd frontend && pnpm build`，将 `frontend/dist` 部署到 Nginx、对象存储或任意静态托管；
-- 将前端访问的接口地址配置为后端地址（如 `https://your-api-domain.com`），并确保后端 CORS 中允许该前端域名。
+在 `backend/.env.development` 中设置 `SEEKDB_HOST=127.0.0.1`、`SEEKDB_PORT=2881`，然后分别执行 `cd backend && pnpm dev` 与 `cd frontend && pnpm dev`。
 
 ### Docker 相关文件说明
 
 | 文件 | 说明 |
 |------|------|
-| `Dockerfile` | 使用 pnpm 安装后端/前端依赖并构建前端，最终仅启动后端 `node backend/src/index.js` |
-| `docker-compose.yml` | 仅定义 SeekDB 服务（端口 2881/2886、数据卷 `./seekdb_data`），应用需另行 `docker run` 或自行在 compose 中增加 app 服务 |
+| `Dockerfile` | 使用 pnpm 安装后端/前端依赖并构建前端，将 `frontend/dist` 复制到 `backend/public`，生产环境由后端同源托管前端 |
+| `docker-compose.yml` | 定义 **seekdb** 与 **app** 两服务；app 依赖 seekdb，通过 `environment` 注入 `SEEKDB_HOST=seekdb` 等，实现一键启动 |
 | `.dockerignore` | 排除 `node_modules`、`.env*`、`frontend/dist` 等，避免无关文件进入镜像 |
 
 ---

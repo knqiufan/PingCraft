@@ -4,8 +4,6 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { appConfig } from './config/index.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { requestLogger } from './middleware/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
@@ -21,6 +19,7 @@ import rolesRoutes from './routes/roles.js';
 import usersRoutes from './routes/users.js';
 import { initDB } from './services/db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 /* ---- 全局中间件 ---- */
