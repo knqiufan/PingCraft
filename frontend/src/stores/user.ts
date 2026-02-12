@@ -3,12 +3,21 @@ import { ref, computed } from 'vue'
 import { login as loginApi } from '@/api/auth'
 import { getConfig } from '@/api/config'
 
+function getStoredRoles(): string[] {
+  try {
+    const raw = localStorage.getItem('roles')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
 export const useUserStore = defineStore('user', () => {
   /* ---- state ---- */
   const token = ref(localStorage.getItem('local_token') || '')
   const username = ref(localStorage.getItem('username') || '')
-  const isAdmin = ref(false)
-  const roles = ref<string[]>([])
+  const isAdmin = ref(localStorage.getItem('isAdmin') === 'true')
+  const roles = ref<string[]>(getStoredRoles())
   const isConnected = ref(false)
 
   /* ---- getters ---- */

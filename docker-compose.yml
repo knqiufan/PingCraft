@@ -1,4 +1,5 @@
-version: '3'
+# 一键启动：SeekDB + 应用（后端 + 前端静态资源同源托管）
+# 使用前请复制 backend/.env.production 并至少配置 JWT_SECRET；SEEKDB_* 由下方 environment 覆盖
 services:
   seekdb:
     image: oceanbase/seekdb:latest
@@ -9,3 +10,22 @@ services:
       - ./seekdb_data:/var/lib/oceanbase
     environment:
       - OB_ROOT_PASSWORD=
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - backend/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SEEKDB_HOST: seekdb
+      SEEKDB_PORT: 2881
+      SEEKDB_USER: root
+      SEEKDB_PASSWORD: ""
+      SEEKDB_DATABASE: pingcode_agent
+      CORS_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - seekdb

@@ -1,0 +1,31 @@
+# 依赖（在镜像内重新安装）
+backend/node_modules
+frontend/node_modules
+
+# 前端构建产物（在镜像内构建）
+frontend/dist
+
+# 环境与本地数据（运行时由 -e 或 --env-file 注入）
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# 版本控制与 IDE
+.git
+.gitignore
+.vscode
+.idea
+*.md
+!README.md
+
+# 本地 SeekDB 数据卷（不打包进镜像）
+seekdb_data
+
+# 后端上传临时目录
+backend/uploads
+
+# 其他
+*.log
+.DS_Store
+.trae

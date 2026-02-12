@@ -1,6 +1,11 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { appConfig } from './config/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { requestLogger } from './middleware/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
@@ -39,9 +44,23 @@ app.use('/api/records', recordsRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/users', usersRoutes);
 
+const publicDir = path.join(__dirname, '../public');
+
 app.get('/', (_req, res) => {
+  if (appConfig.env === 'production' && fs.existsSync(publicDir)) {
+    return res.sendFile(path.join(publicDir, 'index.html'));
+  }
   res.json({ message: 'PingCode Agent 后端服务运行中', env: appConfig.env });
 });
+
+/* ---- 生产环境：托管前端静态资源与 SPA 回退（Docker 同源部署） ---- */
+if (appConfig.env === 'production' && fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/auth')) return next();
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
 
 /* ---- 统一错误处理（必须在路由之后） ---- */
 app.use(errorHandler);
