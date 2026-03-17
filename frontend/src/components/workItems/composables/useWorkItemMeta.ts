@@ -22,6 +22,27 @@ export const fallbackPriorityOptions = [
   { label: '低', value: 'Low' },
 ]
 
+/** 静态状态选项（当元数据不可用时作为 fallback） */
+const fallbackStateOptions: WorkItemStateMeta[] = [
+  { id: 'new', project_id: '', name: '待办' },
+  { id: 'in_progress', project_id: '', name: '进行中' },
+  { id: 'done', project_id: '', name: '已完成' },
+]
+
+/** 类型 fallback 的 { id, name } 格式，供表格下拉使用 */
+const fallbackTypesAsMeta: WorkItemTypeMeta[] = fallbackTypeOptions.map((t) => ({
+  id: t.value,
+  project_id: '',
+  name: t.label,
+}))
+
+/** 优先级 fallback 的 { id, name } 格式，供表格下拉使用 */
+const fallbackPrioritiesAsMeta: WorkItemPriorityMeta[] = fallbackPriorityOptions.map((p) => ({
+  id: p.value,
+  project_id: '',
+  name: p.label,
+}))
+
 /** 向后兼容：保留原 typeOptions 导出名 */
 export const typeOptions = fallbackTypeOptions
 
@@ -72,6 +93,25 @@ export function useWorkItemMeta() {
     )
   }
 
+  /** 表格下拉用：元数据为空时使用 fallback 的类型列表 */
+  const effectiveTypesForProject = computed<WorkItemTypeMeta[]>(() => {
+    if (typesForProject.value.length > 0) return typesForProject.value
+    return fallbackTypesAsMeta
+  })
+
+  /** 表格下拉用：元数据为空时使用 fallback 的优先级列表 */
+  const effectivePrioritiesForProject = computed<WorkItemPriorityMeta[]>(() => {
+    if (prioritiesForProject.value.length > 0) return prioritiesForProject.value
+    return fallbackPrioritiesAsMeta
+  })
+
+  /** 表格下拉用：元数据为空时使用 fallback 的状态列表 */
+  function effectiveStatesForType(typeId: string | undefined): WorkItemStateMeta[] {
+    const states = statesForType(typeId)
+    if (states.length > 0) return states
+    return fallbackStateOptions
+  }
+
   /** 获取类型标签 */
   function getTypeLabel(typeId?: string): string {
     // 先从静态选项中查找
@@ -112,6 +152,9 @@ export function useWorkItemMeta() {
     dynamicTypeOptions,
     dynamicPriorityOptions,
     statesForType,
+    effectiveTypesForProject,
+    effectivePrioritiesForProject,
+    effectiveStatesForType,
     getTypeLabel,
     getPriorityLabel,
     getStateLabel,

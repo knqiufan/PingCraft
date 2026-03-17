@@ -19,7 +19,7 @@
               @change="(v: string) => handleRowFieldChange(row, 'type_id', v)"
             >
               <el-option
-                v-for="t in typesForProject"
+                v-for="t in effectiveTypesForProject"
                 :key="t.id"
                 :label="t.name"
                 :value="t.id"
@@ -38,7 +38,7 @@
               @change="(v: string) => handleRowFieldChange(row, 'priority_id', v)"
             >
               <el-option
-                v-for="p in prioritiesForProject"
+                v-for="p in effectivePrioritiesForProject"
                 :key="p.id"
                 :label="p.name"
                 :value="p.id"
@@ -57,7 +57,7 @@
               @change="(v: string) => handleRowFieldChange(row, 'state_id', v)"
             >
               <el-option
-                v-for="s in statesForType(row.type_id)"
+                v-for="s in effectiveStatesForType(row.type_id)"
                 :key="s.id"
                 :label="s.name"
                 :value="s.id"
@@ -118,9 +118,9 @@ const emit = defineEmits<{
 }>()
 
 const {
-  typesForProject,
-  prioritiesForProject,
-  statesForType,
+  effectiveTypesForProject,
+  effectivePrioritiesForProject,
+  effectiveStatesForType,
   formatDate,
 } = useWorkItemMeta()
 
