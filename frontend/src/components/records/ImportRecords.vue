@@ -34,7 +34,7 @@
       <el-table-column prop="createdAt" label="时间" width="160" align="center">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" align="center" fixed="right">
+      <el-table-column label="操作" width="260" align="center" fixed="right">
         <template #default="{ row }">
           <el-button
             text

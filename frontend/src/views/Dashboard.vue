@@ -60,6 +60,9 @@
             <el-tab-pane label="模型配置" name="models">
               <ModelManagement />
             </el-tab-pane>
+            <el-tab-pane label="统计分析" name="stats">
+              <ProjectStats />
+            </el-tab-pane>
             <el-tab-pane label="导入记录" name="records">
               <ImportRecords />
             </el-tab-pane>
@@ -98,6 +101,7 @@ import RoleManagement from '@/components/roles/RoleManagement.vue'
 import UserManagement from '@/components/users/UserManagement.vue'
 import SettingsDialog from '@/components/settings/SettingsDialog.vue'
 import SetupWizard from '@/components/common/SetupWizard.vue'
+import ProjectStats from '@/components/stats/ProjectStats.vue'
 
 const router = useRouter()
 const route = useRoute()

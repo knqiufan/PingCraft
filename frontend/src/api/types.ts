@@ -168,3 +168,41 @@ export interface LoginResponse {
 export interface LoginUrlResponse {
   url: string
 }
+
+/** 统计分布项 */
+export interface StatsDistributionItem {
+  name: string
+  value: number
+}
+
+/** 状态分布 */
+export interface StateDistribution {
+  groups: {
+    todo: number
+    inProgress: number
+    done: number
+    other: number
+  }
+  details: Array<{ name: string; type: string; count: number }>
+  total: number
+  completionRate: number
+}
+
+/** 项目统计数据 */
+export interface ProjectStatsData {
+  project: { id: string; name: string }
+  totalItems: number
+  totalEstimatedHours: number
+  assigneeDistribution: StatsDistributionItem[]
+  typeDistribution: StatsDistributionItem[]
+  priorityDistribution: StatsDistributionItem[]
+  stateDistribution: StateDistribution
+  workloadByAssignee: StatsDistributionItem[]
+  workloadByType: StatsDistributionItem[]
+}
+
+/** AI 分析报告响应 */
+export interface AIAnalysisData {
+  report: string
+  stats: ProjectStatsData
+}

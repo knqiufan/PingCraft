@@ -7,23 +7,36 @@
     "dev": "vite --mode development",
     "build": "vue-tsc -b && vite build --mode production",
     "build:test": "vue-tsc -b && vite build --mode test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.13.5",
+    "echarts": "^6.0.0",
     "element-plus": "^2.13.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "markdown-it": "^14.1.1",
     "pinia": "^3.0.3",
     "sass": "^1.97.3",
     "vue": "^3.5.25",
+    "vue-echarts": "^8.0.1",
     "vue-router": "^5.0.2"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
+    "@vitest/coverage-v8": "^3.1.1",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.8.1",
+    "happy-dom": "^17.4.4",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
+    "vitest": "^3.1.1",
     "vue-tsc": "^3.1.5"
   }
 }

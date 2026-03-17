@@ -9,49 +9,10 @@ import {
 } from '../services/pingcode.js';
 import { ImportRecord, ImportRecordItem, WorkItemType, WorkItemPriority } from '../models/index.js';
 import { success } from '../utils/response.js';
+import { generateProjectIdentifier, toUnixTimestamp, resolveTypeId, resolvePriorityId } from '../utils/workItem.js';
+import { fetchAndStoreMetadataForProject } from '../services/metadata.js';
 
 const router = express.Router();
-
-/**
- * 生成项目标识符（identifier）
- * 规则：大写字母/数字/下划线/连接线，不超过15字符
- */
-function generateProjectIdentifier(projectName) {
-  // 移除特殊字符，保留字母、数字、空格
-  const cleaned = projectName
-    .replace(/[^\w\s\u4e00-\u9fa5]/g, '')
-    .trim();
-  
-  // 如果是中文名称，取拼音首字母或使用时间戳
-  const hasChineseChar = /[\u4e00-\u9fa5]/.test(cleaned);
-  if (hasChineseChar) {
-    // 简单处理：使用 PRJ + 时间戳后6位
-    const timestamp = Date.now().toString().slice(-6);
-    return `PRJ${timestamp}`;
-  }
-  
-  // 英文名称：取首字母大写，最多15字符
-  const identifier = cleaned
-    .toUpperCase()
-    .replace(/\s+/g, '_')
-    .slice(0, 15);
-  
-  return identifier || `PRJ${Date.now().toString().slice(-6)}`;
-}
-
-/**
- * 将 ISO 日期字符串或 Date 转换为 Unix 时间戳（秒）
- */
-function toUnixTimestamp(dateInput) {
-  if (!dateInput) return null;
-  if (typeof dateInput === 'number') {
-    // 如果已经是时间戳，检查是毫秒还是秒
-    return dateInput > 9999999999 ? Math.floor(dateInput / 1000) : dateInput;
-  }
-  const date = new Date(dateInput);
-  if (isNaN(date.getTime())) return null;
-  return Math.floor(date.getTime() / 1000);
-}
 
 /**
  * 根据项目元数据构建 type name -> type id 映射表
@@ -96,32 +57,6 @@ async function buildPriorityNameMap(userId, projectId) {
     }
   }
   return map;
-}
-
-/**
- * 解析 type_id：如果已经是 UUID 则直接返回，否则尝试从映射表查找
- */
-function resolveTypeId(typeId, typeNameMap) {
-  if (!typeId) return typeNameMap.get('story') || 'story';
-  if (typeId.includes('-') && typeId.length > 20) return typeId;
-  const mapped = typeNameMap.get(typeId.toLowerCase());
-  return mapped || typeNameMap.get('story') || typeId;
-}
-
-/**
- * 解析 priority_id：优先使用显式 priority_id，否则从 priority 名称映射
- */
-function resolvePriorityId(priorityId, priorityName, priorityNameMap) {
-  if (priorityId && priorityId.includes('-') && priorityId.length > 20) return priorityId;
-  if (priorityId) {
-    const mapped = priorityNameMap.get(priorityId.toLowerCase());
-    if (mapped) return mapped;
-  }
-  if (priorityName) {
-    const mapped = priorityNameMap.get(priorityName.toLowerCase());
-    if (mapped) return mapped;
-  }
-  return null;
 }
 
 /** 匹配最相似的项目 */
@@ -297,6 +232,12 @@ router.post('/import', requireAuth, ensureFreshToken, async (req, res, next) => 
               name: newProject.name,
             });
             console.log(`[Import] 自动创建项目: ${newProject.name} (${newProject.id})`);
+
+            // 为新项目拉取并存储元数据，确保后续 type_id / priority_id 能正确解析
+            const metaCounts = await fetchAndStoreMetadataForProject(
+              req.user.id, access_token, domain, targetProjectId
+            );
+            console.log(`[Import] 新项目元数据同步: +${metaCounts.types} types, +${metaCounts.priorities} priorities`);
           } catch (createErr) {
             const errMsg = createErr.response?.data?.message || createErr.message;
             console.error(`[Import] 创建项目失败: ${projectKey}`, errMsg);
@@ -510,6 +451,11 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req, res) =>
             targetProjectId = newProject.id;
             results.createdProjects.push({ id: newProject.id, name: newProject.name });
             sendEvent('project_created', { name: newProject.name });
+
+            const metaCounts = await fetchAndStoreMetadataForProject(
+              req.user.id, access_token, domain, targetProjectId
+            );
+            console.log(`[Import-Stream] 新项目元数据同步: +${metaCounts.types} types, +${metaCounts.priorities} priorities`);
           } catch (err) {
             const errMsg = err.response?.data?.message || err.message;
             for (const item of projectItems) {

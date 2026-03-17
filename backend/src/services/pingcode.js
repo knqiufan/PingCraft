@@ -92,7 +92,7 @@ export async function getWorkItems(token, projectId, domain) {
   const apiBase = getApiBase(domain);
   const pageSize = 100;
   let allItems = [];
-  let pageIndex = 1;
+  let pageIndex = 0;
   let hasMore = true;
 
   while (hasMore) {

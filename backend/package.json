@@ -6,7 +6,9 @@
   "scripts": {
     "start": "cross-env NODE_ENV=production node src/index.js",
     "dev": "cross-env NODE_ENV=development node src/index.js",
-    "test": "cross-env NODE_ENV=test node src/index.js"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +35,8 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "vitest": "^3.1.1",
+    "@vitest/coverage-v8": "^3.1.1"
   }
 }
