@@ -1,4 +1,5 @@
 import { Sequelize } from 'sequelize';
+import bcrypt from 'bcryptjs';
 import { SeekdbClient } from 'seekdb';
 import { appConfig } from '../config/index.js';
 
@@ -75,6 +76,33 @@ async function initDefaultRoles() {
   }
 }
 
+/** 初始化默认管理员账号（admin / qwe@123） */
+async function initDefaultAdmin() {
+  const { User, Role, UserRole } = await import('../models/index.js');
+
+  const existingUser = await User.findOne({ where: { username: 'admin' } });
+  if (existingUser) {
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash('qwe@123', 10);
+  const adminRole = await Role.findOne({ where: { name: 'admin' } });
+  if (!adminRole) {
+    console.warn('[DB] 未找到 admin 角色，跳过创建默认管理员');
+    return;
+  }
+
+  const user = await User.create({
+    username: 'admin',
+    password_hash: passwordHash,
+  });
+  await UserRole.create({
+    user_id: user.id,
+    role_id: adminRole.id,
+  });
+  console.log('[DB] 创建默认管理员账号: admin / qwe@123');
+}
+
 /** 初始化向量集合 */
 async function initCollections() {
   const collections = ['projects', 'work_items'];
@@ -95,6 +123,7 @@ export async function initDB() {
     try {
       await connectRelational();
       await initDefaultRoles();
+      await initDefaultAdmin();
       await initCollections();
       console.log('[DB] SeekDB 向量数据库已连接');
       return;

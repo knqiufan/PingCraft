@@ -28,10 +28,10 @@ export const appConfig = {
   isDev: (process.env.NODE_ENV || 'development') === 'development',
 
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5177',
   },
 
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5177',
 
   jwt: {
     secret: process.env.JWT_SECRET || 'dev_secret_key',

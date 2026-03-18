@@ -97,10 +97,10 @@ NODE_ENV=development
 PORT=3000
 
 # CORS（前端开发地址）
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGIN=http://localhost:5177
 
 # 前端地址（OAuth 回调重定向用）
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5177
 
 # PingCode OAuth（host / redirect_uri 全局配置；client_id/secret 可在「设置」中按用户配置）
 PINGCODE_REDIRECT_URI=http://localhost:3000/auth/callback
@@ -156,7 +156,7 @@ cd backend && pnpm dev
 cd frontend && pnpm dev
 ```
 
-浏览器访问 `http://localhost:5173`。首次使用会自动展示 **Setup Wizard**，引导完成 PingCode 连接、AI 模型配置和数据同步。
+浏览器访问 `http://localhost:5177`。首次使用会自动展示 **Setup Wizard**，引导完成 PingCode 连接、AI 模型配置和数据同步。
 
 **生产环境：**
 
