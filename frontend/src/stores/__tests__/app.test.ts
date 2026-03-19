@@ -54,7 +54,7 @@ describe('useAppStore', () => {
       ] as any
       store.removeRequirement(1)
       expect(store.requirements).toHaveLength(2)
-      expect(store.requirements[1].title).toBe('C')
+      expect(store.requirements[1]?.title).toBe('C')
     })
   })
 
@@ -65,15 +65,15 @@ describe('useAppStore', () => {
         { id: '1', title: 'A', priority: 'Low' },
       ] as any
       store.updateRequirement(0, { priority: 'High' } as any)
-      expect(store.requirements[0].priority).toBe('High')
-      expect(store.requirements[0].title).toBe('A')
+      expect(store.requirements[0]?.priority).toBe('High')
+      expect(store.requirements[0]?.title).toBe('A')
     })
 
     it('should not modify when index is out of range', () => {
       const store = useAppStore()
       store.requirements = [{ id: '1', title: 'A' }] as any
       store.updateRequirement(5, { title: 'X' } as any)
-      expect(store.requirements[0].title).toBe('A')
+      expect(store.requirements[0]?.title).toBe('A')
     })
   })
 

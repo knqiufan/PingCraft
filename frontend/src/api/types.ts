@@ -77,6 +77,8 @@ export interface SyncedProjectMeta {
   id: string
   name: string
   description?: string
+  /** 本地同步入库时间（ISO 字符串），旧数据可能无此字段 */
+  createdAt?: string
 }
 
 /** 已同步工作项 */
@@ -85,6 +87,10 @@ export interface SyncedWorkItemMeta {
   project_id: string
   title: string
   identifier?: string
+  /** 关联项目名称展示用，可能由后端联表填充 */
+  project_name?: string
+  /** 本地同步入库时间（ISO 字符串），旧数据可能无此字段 */
+  createdAt?: string
 }
 
 /** PingCode 用户信息 */
@@ -161,7 +167,12 @@ export interface AnalyzeResult {
 export interface LoginResponse {
   success: boolean
   token: string
-  user: { id: string; username: string }
+  user: {
+    id: string
+    username: string
+    isAdmin?: boolean
+    roles?: string[]
+  }
 }
 
 /** 认证 URL 响应 */

@@ -82,7 +82,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { getProjectStats, getAIAnalysis } from '@/api/stats'
 import type { ProjectStatsData } from '@/api/types'

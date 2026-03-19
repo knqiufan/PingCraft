@@ -24,7 +24,6 @@ export function useReportDownload() {
         logging: false,
       })
 
-      const imgData = canvas.toDataURL('image/png')
       const imgWidth = canvas.width
       const imgHeight = canvas.height
 

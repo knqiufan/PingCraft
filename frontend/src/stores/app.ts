@@ -12,7 +12,7 @@ import type {
   PingCodeUserInfo,
   MetadataOverview,
 } from '@/api/types'
-import { syncData as syncDataApi, matchProject, checkDuplicates, importItems, importItemsStream } from '@/api/workItems'
+import { syncData as syncDataApi, matchProject, checkDuplicates, importItemsStream } from '@/api/workItems'
 import {
   getWorkItemTypes,
   getWorkItemStates,

@@ -78,9 +78,6 @@ const projectSummary = computed(() => {
   return names
 })
 
-// 已匹配的项目ID集合
-const matchedProjectIds = computed(() => new Set(appStore.projects.map(p => p.id)))
-
 // 已匹配的项目名称集合
 const matchedProjectNames = computed(() => new Set(appStore.projects.map(p => p.name)))
 
