@@ -55,7 +55,7 @@
 | 层级 | 选型 |
 |------|------|
 | **前端** | Vue 3、TypeScript、Vite 7、Element Plus、Pinia、Vue Router、ECharts（vue-echarts） |
-| **后端** | Node.js 18+、Express 5、ES Module |
+| **后端** | Node.js 22 LTS（与前端构建一致）、Express 5、ES Module |
 | **数据库** | [SeekDB](https://www.seekdb.com/)（MySQL 兼容 + 向量） |
 | **AI** | LangChain、OpenAI 兼容 API、Anthropic（可选） |
 | **实时** | SSE（导入进度） |
@@ -66,7 +66,7 @@
 
 ## 前置条件
 
-- Node.js **18+**
+- Node.js **20.19+** 或 **22.12+**（与 **Vite 7** 一致；推荐 **22 LTS**）
 - **pnpm**
 - **Docker** 与 **Docker Compose**（可选：一键 SeekDB + 应用，或仅起 SeekDB 本地开发）
 - PingCode 开放平台 **Client ID / Secret**（配置回调地址）
