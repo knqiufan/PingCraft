@@ -25,6 +25,12 @@ export const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  /** OAuth2 grant: authorization_code（用户授权）| client_credentials（企业令牌） */
+  pingcode_grant_type: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'authorization_code'
+  },
   // PingCode Tokens
   pingcode_uid: {
     type: DataTypes.STRING,

@@ -25,6 +25,8 @@ import {
   getAuthUrl,
   getToken,
   refreshAccessToken,
+  getEnterpriseToken,
+  computeExpiresAtFromTokenResponse,
   getProjects,
   getWorkItems,
   findProjectByName,
@@ -68,6 +70,36 @@ describe('PingCode Service', () => {
       expect(calledUrl).toContain('grant_type=refresh_token');
       expect(calledUrl).toContain('refresh_token=refresh123');
       expect(result).toEqual({ access_token: 'new_token' });
+    });
+  });
+
+  describe('getEnterpriseToken()', () => {
+    it('should call axios.get with client_credentials params', async () => {
+      axios.get.mockResolvedValue({ data: { access_token: 'ent_token', expires_in: 3600 } });
+      const result = await getEnterpriseToken('cid', 'csecret');
+      expect(axios.get).toHaveBeenCalled();
+      const calledUrl = axios.get.mock.calls[0][0];
+      expect(calledUrl).toContain('grant_type=client_credentials');
+      expect(calledUrl).toContain('client_id=cid');
+      expect(calledUrl).toContain('client_secret=csecret');
+      expect(result.access_token).toBe('ent_token');
+    });
+  });
+
+  describe('computeExpiresAtFromTokenResponse()', () => {
+    it('should add expires_in seconds to now', () => {
+      const before = Date.now();
+      const d = computeExpiresAtFromTokenResponse({ expires_in: 60 });
+      const after = Date.now();
+      expect(d.getTime()).toBeGreaterThanOrEqual(before + 59_000);
+      expect(d.getTime()).toBeLessThanOrEqual(after + 61_000);
+    });
+
+    it('should default to 30 days when expires_in missing', () => {
+      const d = computeExpiresAtFromTokenResponse({});
+      const span = d.getTime() - Date.now();
+      expect(span).toBeGreaterThan(29 * 24 * 3600 * 1000);
+      expect(span).toBeLessThan(31 * 24 * 3600 * 1000);
     });
   });
 

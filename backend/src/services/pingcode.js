@@ -5,6 +5,27 @@ import { withRetry } from '../utils/retry.js';
 
 const { pingcode: pcConf } = appConfig;
 
+/** PingCode OAuth2 grant_type 取值 */
+export const PINGCODE_GRANT_AUTHORIZATION_CODE = 'authorization_code';
+export const PINGCODE_GRANT_CLIENT_CREDENTIALS = 'client_credentials';
+
+const THIRTY_DAYS_SEC = 30 * 24 * 3600;
+const MAX_EXPIRES_IN_SEC = 40 * 24 * 3600;
+
+/**
+ * 根据 token 接口返回计算 access_token 过期时间（expires_in 按秒解析，异常值回退/裁剪）
+ */
+export function computeExpiresAtFromTokenResponse(tokenData) {
+  let sec = Number(tokenData?.expires_in);
+  if (!Number.isFinite(sec) || sec <= 0) {
+    return new Date(Date.now() + THIRTY_DAYS_SEC * 1000);
+  }
+  if (sec > MAX_EXPIRES_IN_SEC) {
+    sec = THIRTY_DAYS_SEC;
+  }
+  return new Date(Date.now() + sec * 1000);
+}
+
 /* ---- 域名与 API 地址处理 ---- */
 
 function normalizeHost(domain) {
@@ -68,6 +89,22 @@ export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
       return res.data;
     },
     { maxRetries: 2, label: 'PingCode:refreshToken' }
+  );
+}
+
+/** 企业令牌：client_credentials */
+export async function getEnterpriseToken(clientId, clientSecret) {
+  const url = new URL('/v1/auth/token', pcConf.host);
+  url.searchParams.set('grant_type', PINGCODE_GRANT_CLIENT_CREDENTIALS);
+  url.searchParams.set('client_id', clientId);
+  url.searchParams.set('client_secret', clientSecret);
+
+  return withRetry(
+    async () => {
+      const res = await axios.get(url.toString());
+      return res.data;
+    },
+    { maxRetries: 2, label: 'PingCode:getEnterpriseToken' }
   );
 }
 

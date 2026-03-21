@@ -110,11 +110,15 @@ export interface Project {
   suggestedName?: string
 }
 
+/** PingCode OAuth2 grant_type */
+export type PingCodeGrantType = 'authorization_code' | 'client_credentials'
+
 /** 配置信息 */
 export interface ConfigInfo {
   client_id: string
   has_secret: boolean
   is_connected: boolean
+  grant_type: PingCodeGrantType
 }
 
 /** 同步结果 */
