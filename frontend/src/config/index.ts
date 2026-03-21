@@ -5,7 +5,7 @@ export const config = {
   /** API 基础地址 */
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
   /** 应用标题 */
-  appTitle: import.meta.env.VITE_APP_TITLE || 'PingCode 需求智能分析',
+  appTitle: import.meta.env.VITE_APP_TITLE || 'PingCraft',
   /** 是否开发环境 */
   isDev: import.meta.env.DEV,
   /** 是否生产环境 */

@@ -1,6 +1,6 @@
-# PingCode Agent
+# PingCraft
 
-> **适用环境与版本**：本 Agent 面向 [PingCode](https://pingcode.com/) 官网环境 **6.13.5** 版本的开放 API 与数据结构为开发与验证基准。若使用私有化部署或其它主版本，字段或接口行为可能与本文描述不一致，请以实际环境为准。
+> **适用环境与版本**：**PingCraft** 面向 [PingCode](https://pingcode.com/) 官网环境 **6.13.5** 版本的开放 API 与数据结构为开发与验证基准。若使用私有化部署或其它主版本，字段或接口行为可能与本文描述不一致，请以实际环境为准。
 
 [![Vue 3](https://img.shields.io/badge/Vue%203-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -15,7 +15,7 @@
 [![SeekDB](https://img.shields.io/badge/SeekDB-00758F?style=flat-square&logo=oceanbase&logoColor=white)](https://www.seekdb.com/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
-基于 **AI Agent** 的需求智能分析与导入工具：上传 Word / Markdown / TXT，用大模型解析为结构化工作项，与已同步的 [PingCode](https://pingcode.com/) 项目做**向量相似度匹配与查重**，并可**统计分析**、**AI 解读报告**与**导出 PDF**，适合团队统一接入 PingCode 前的需求梳理与批量建单。
+**PingCraft** 是一款基于 **AI** 的需求智能分析与导入工具：上传 Word / Markdown / TXT，用大模型解析为结构化工作项，与已同步的 [PingCode](https://pingcode.com/) 项目做**向量相似度匹配与查重**，并可**统计分析**、**AI 解读报告**与**导出 PDF**，适合团队统一接入 PingCode 前的需求梳理与批量建单。
 
 ---
 
@@ -86,8 +86,8 @@
 ### 克隆
 
 ```bash
-git clone https://github.com/knqiufan/pingcode-agent.git
-cd pingcode-agent
+git clone https://github.com/knqiufan/PingCraft.git
+cd PingCraft
 ```
 
 ### 依赖
@@ -187,7 +187,7 @@ docker compose down
 ## 项目结构
 
 ```
-pingcode-agent/
+PingCraft/
 ├── backend/src/
 │   ├── config/          # 环境加载
 │   ├── middleware/      # 鉴权、RBAC、日志、PingCode Token 刷新等
@@ -235,11 +235,11 @@ pingcode-agent/
 
 ## 相关截图
 
-![image-20260322004719923](.\image\image-20260322004719923.png)
+![image-20260322004719923](./image/image-20260322004719923.png)
 
-![image-20260322004618337](.\image\image-20260322004618337.png)
+![image-20260322004618337](./image/image-20260322004618337.png)
 
-![image-20260322005610971](.\image\image-20260322005610971.png)
+![image-20260322005610971](./image/image-20260322005610971.png)
 
 
 

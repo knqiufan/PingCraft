@@ -50,7 +50,7 @@ app.get('/', (_req, res) => {
   if (appConfig.env === 'production' && fs.existsSync(publicDir)) {
     return res.sendFile(path.join(publicDir, 'index.html'));
   }
-  res.json({ message: 'PingCode Agent 后端服务运行中', env: appConfig.env });
+  res.json({ message: 'PingCraft 后端服务运行中', env: appConfig.env });
 });
 
 /* ---- 生产环境：托管前端静态资源与 SPA 回退（Docker 同源部署） ---- */

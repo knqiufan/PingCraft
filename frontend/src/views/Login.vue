@@ -4,8 +4,8 @@
       <!-- 顶部标识 -->
       <div class="login-header">
         <el-icon :size="28" color="#1890ff"><Monitor /></el-icon>
-        <h1 class="login-title">PingCode 需求智能分析</h1>
-        <p class="login-subtitle">PingCode Agent</p>
+        <h1 class="login-title">PingCraft</h1>
+        <p class="login-subtitle">需求智能分析与导入</p>
       </div>
 
       <!-- 表单 -->

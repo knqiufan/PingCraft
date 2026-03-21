@@ -2,7 +2,7 @@
   <header class="page-header">
     <div class="header-left">
       <el-icon :size="22" color="#1890ff"><Monitor /></el-icon>
-      <span class="header-title">PingCode 需求智能分析</span>
+      <span class="header-title">PingCraft</span>
     </div>
     <div class="header-right">
       <span class="header-user">

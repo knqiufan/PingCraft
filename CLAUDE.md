@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PingCode Agent — an AI-powered requirements analysis and import tool for PingCode project management. Users upload requirement documents (DOCX/Markdown/TXT), which are parsed by LLM into structured work items, matched against existing PingCode projects via vector search (SeekDB), and batch-imported with duplicate detection.
+PingCraft — an AI-powered requirements analysis and import tool for PingCode project management. Users upload requirement documents (DOCX/Markdown/TXT), which are parsed by LLM into structured work items, matched against existing PingCode projects via vector search (SeekDB), and batch-imported with duplicate detection.
 
 ## Tech Stack
 

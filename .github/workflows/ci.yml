@@ -81,4 +81,4 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t pingcode-agent:ci-test .
+      - run: docker build -t pingcraft:ci-test .
