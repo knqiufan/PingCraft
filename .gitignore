@@ -46,6 +46,7 @@ _tmp_*/
 *.njsproj
 *.sln
 *.sw?
+.trae
 
 # Misc
 *.local
