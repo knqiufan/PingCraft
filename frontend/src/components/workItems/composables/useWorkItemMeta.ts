@@ -125,7 +125,9 @@ export function useWorkItemMeta() {
   /** 获取优先级标签 */
   function getPriorityLabel(priority?: string): string {
     const map: Record<string, string> = { High: '高', Medium: '中', Low: '低' }
-    if (map[priority || '']) return map[priority || '']
+    const key = priority ?? ''
+    const mapped = map[key]
+    if (mapped) return mapped
     // 从元数据中查找
     const meta = appStore.workItemPriorities.find((p) => p.id === priority || p.name === priority)
     return meta?.name || priority || '-'

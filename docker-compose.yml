@@ -8,8 +8,10 @@ services:
       - "2886:2886"
     volumes:
       - ./seekdb_data:/var/lib/oceanbase
+    # 与官方镜像一致：https://www.oceanbase.ai/docs/zh-CN/deploy-by-docker/
+    # 若设置密码，请同时在 app 的 SEEKDB_PASSWORD 中填写相同值
     environment:
-      - OB_ROOT_PASSWORD=
+      ROOT_PASSWORD: ""
 
   app:
     build: .

@@ -120,13 +120,13 @@ describe('useWorkItemMeta', () => {
     const { statesForType } = useWorkItemMeta()
     const states = statesForType('t1')
     expect(states).toHaveLength(1)
-    expect(states[0].name).toBe('Open')
+    expect(states[0]?.name).toBe('Open')
   })
 
   it('effectiveStatesForType should fallback when no states', () => {
     const { effectiveStatesForType } = useWorkItemMeta()
     const states = effectiveStatesForType('nonexistent')
     expect(states.length).toBeGreaterThan(0)
-    expect(states[0].name).toBe('待办')
+    expect(states[0]?.name).toBe('待办')
   })
 })
