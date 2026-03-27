@@ -5,6 +5,7 @@ node_modules/
 docs/
 doc/
 uploads/
+backend/uploads/
 
 # Environment variables (may contain secrets)
 .env
