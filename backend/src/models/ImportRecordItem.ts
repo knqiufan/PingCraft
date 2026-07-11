@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export type ImportRecordItemStatus = 'pending' | 'success' | 'failed' | 'skipped';
@@ -33,11 +33,30 @@ export interface ImportRecordItemAttributes {
   updatedAt?: Date;
 }
 
-export const ImportRecordItem: ModelDefined<
-  ImportRecordItemAttributes,
-  ImportRecordItemAttributes
-> = sequelize.define(
-  'ImportRecordItem',
+export class ImportRecordItem extends Model<ImportRecordItemAttributes, ImportRecordItemAttributes> {
+  declare id: string;
+  declare record_id: string;
+  declare title: string;
+  declare description?: string | null;
+  declare project_name?: string | null;
+  declare type_id?: string | null;
+  declare priority_id?: string | null;
+  declare priority?: string | null;
+  declare estimated_hours?: number | null;
+  declare start_at?: string | null;
+  declare end_at?: string | null;
+  declare assignee_name?: string | null;
+  declare assignee_id?: string | null;
+  declare solution_suggestion?: string | null;
+  declare pingcode_id?: string | null;
+  declare pingcode_identifier?: string | null;
+  declare status?: ImportRecordItemStatus;
+  declare error_message?: string | null;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+ImportRecordItem.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     record_id: { type: DataTypes.UUID, allowNull: false, comment: '关联的导入记录ID' },
@@ -63,6 +82,7 @@ export const ImportRecordItem: ModelDefined<
     error_message: { type: DataTypes.TEXT, allowNull: true, comment: '导入失败的错误信息' },
   },
   {
+    sequelize,
     tableName: 'import_record_items',
     timestamps: true,
     indexes: [{ fields: ['record_id'] }, { fields: ['status'] }],

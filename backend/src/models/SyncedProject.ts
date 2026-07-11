@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export interface SyncedProjectAttributes {
@@ -14,11 +14,18 @@ export interface SyncedProjectAttributes {
   updatedAt?: Date;
 }
 
-export const SyncedProject: ModelDefined<
-  SyncedProjectAttributes,
-  SyncedProjectAttributes
-> = sequelize.define(
-  'SyncedProject',
+export class SyncedProject extends Model<SyncedProjectAttributes, SyncedProjectAttributes> {
+  declare id: string;
+  declare user_id: string;
+  declare name: string;
+  declare description?: string | null;
+  declare remote_updated_at?: string | null;
+  declare is_archived?: boolean;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+SyncedProject.init(
   {
     id: { type: DataTypes.STRING, allowNull: false, primaryKey: true, comment: 'PingCode 项目 ID' },
     user_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
@@ -27,5 +34,5 @@ export const SyncedProject: ModelDefined<
     remote_updated_at: { type: DataTypes.STRING, allowNull: true, comment: 'PingCode 项目最后更新时间（ISO 字符串或时间戳）' },
     is_archived: { type: DataTypes.BOOLEAN, defaultValue: false, comment: 'PingCode 侧已删除/归档时标记为 true' },
   },
-  { tableName: 'synced_projects', timestamps: true },
+  { sequelize, tableName: 'synced_projects', timestamps: true },
 );

@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
 
@@ -24,11 +24,31 @@ export interface UserAttributes {
   updatedAt?: Date;
 }
 
+export class User extends Model<UserAttributes, UserAttributes> {
+  declare id: string;
+  declare username: string;
+  declare password_hash: string;
+  declare pingcode_client_id?: string | null;
+  declare pingcode_client_secret?: string | null;
+  declare pingcode_grant_type?: string;
+  declare pingcode_uid?: string | null;
+  declare access_token?: string | null;
+  declare refresh_token?: string | null;
+  declare expires_at?: Date | null;
+  declare domain?: string | null;
+  declare pingcode_user_id?: string | null;
+  declare pingcode_user_name?: string | null;
+  declare pingcode_display_name?: string | null;
+  declare pingcode_email?: string | null;
+  declare pingcode_avatar?: string | null;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
 /** 需要透明加解密的敏感字段 */
 const SENSITIVE_FIELDS = ['pingcode_client_secret', 'access_token', 'refresh_token'];
 
-export const User: ModelDefined<UserAttributes, UserAttributes> = sequelize.define(
-  'User',
+User.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     username: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -57,6 +77,7 @@ export const User: ModelDefined<UserAttributes, UserAttributes> = sequelize.defi
     pingcode_avatar: { type: DataTypes.STRING, allowNull: true },
   },
   {
+    sequelize,
     tableName: 'user_auth',
     timestamps: true,
     // Force sync to update schema since we changed PK

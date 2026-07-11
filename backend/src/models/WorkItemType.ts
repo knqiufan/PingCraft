@@ -1,7 +1,6 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
-/** WorkItemType 行属性（timestamps: true 自动追加 createdAt/updatedAt） */
 export interface WorkItemTypeAttributes {
   id: string;
   project_id: string;
@@ -12,40 +11,23 @@ export interface WorkItemTypeAttributes {
   updatedAt?: Date;
 }
 
-export const WorkItemType: ModelDefined<
-  WorkItemTypeAttributes,
-  WorkItemTypeAttributes
-> = sequelize.define(
-  'WorkItemType',
+export class WorkItemType extends Model<WorkItemTypeAttributes, WorkItemTypeAttributes> {
+  declare id: string;
+  declare project_id: string;
+  declare user_id: string;
+  declare name: string;
+  declare group?: string | null;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+WorkItemType.init(
   {
-    id: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      primaryKey: true,
-      comment: 'PingCode 类型 ID，如 epic, story, task',
-    },
-    project_id: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      primaryKey: true,
-    },
-    user_id: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      primaryKey: true,
-    },
-    name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    group: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: 'requirement / task / bug',
-    },
+    id: { type: DataTypes.STRING, allowNull: false, primaryKey: true, comment: 'PingCode 类型 ID，如 epic, story, task' },
+    project_id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    group: { type: DataTypes.STRING, allowNull: true, comment: 'requirement / task / bug' },
   },
-  {
-    tableName: 'work_item_types',
-    timestamps: true,
-  },
+  { sequelize, tableName: 'work_item_types', timestamps: true },
 );

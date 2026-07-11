@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
 
@@ -19,14 +19,25 @@ export interface ModelConfigAttributes {
   updatedAt?: Date;
 }
 
+export class ModelConfig extends Model<ModelConfigAttributes, ModelConfigAttributes> {
+  declare id: string;
+  declare user_id: string;
+  declare name: string;
+  declare provider: ModelProvider;
+  declare api_key: string;
+  declare base_url?: string | null;
+  declare model: string;
+  declare temperature?: number | null;
+  declare max_tokens?: number | null;
+  declare is_default?: boolean;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
 /** 需要透明加解密的敏感字段 */
 const SENSITIVE_FIELDS = ['api_key'];
 
-export const ModelConfig: ModelDefined<
-  ModelConfigAttributes,
-  ModelConfigAttributes
-> = sequelize.define(
-  'ModelConfig',
+ModelConfig.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID, allowNull: false },
@@ -40,6 +51,7 @@ export const ModelConfig: ModelDefined<
     is_default: { type: DataTypes.BOOLEAN, defaultValue: false, comment: '是否为默认配置' },
   },
   {
+    sequelize,
     tableName: 'model_configs',
     timestamps: true,
     indexes: [{ unique: true, fields: ['user_id', 'name'] }],

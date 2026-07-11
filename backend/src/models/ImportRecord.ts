@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export type ImportRecordStatus =
@@ -25,11 +25,24 @@ export interface ImportRecordAttributes {
   updatedAt?: Date;
 }
 
-export const ImportRecord: ModelDefined<
-  ImportRecordAttributes,
-  ImportRecordAttributes
-> = sequelize.define(
-  'ImportRecord',
+export class ImportRecord extends Model<ImportRecordAttributes, ImportRecordAttributes> {
+  declare id: string;
+  declare user_id: string;
+  declare file_name: string;
+  declare original_file_path?: string | null;
+  declare requirements_count: number;
+  declare projects_count?: number;
+  declare target_project_id?: string | null;
+  declare target_project_name?: string | null;
+  declare imported_count?: number;
+  declare failed_count?: number;
+  declare status?: ImportRecordStatus;
+  declare error_message?: string | null;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+ImportRecord.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID, allowNull: false },
@@ -48,5 +61,5 @@ export const ImportRecord: ModelDefined<
     },
     error_message: { type: DataTypes.TEXT, allowNull: true, comment: '错误信息' },
   },
-  { tableName: 'import_records', timestamps: true },
+  { sequelize, tableName: 'import_records', timestamps: true },
 );

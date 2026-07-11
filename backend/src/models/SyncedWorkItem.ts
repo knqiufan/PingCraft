@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export interface SyncedWorkItemAttributes {
@@ -16,11 +16,20 @@ export interface SyncedWorkItemAttributes {
   updatedAt?: Date;
 }
 
-export const SyncedWorkItem: ModelDefined<
-  SyncedWorkItemAttributes,
-  SyncedWorkItemAttributes
-> = sequelize.define(
-  'SyncedWorkItem',
+export class SyncedWorkItem extends Model<SyncedWorkItemAttributes, SyncedWorkItemAttributes> {
+  declare id: string;
+  declare user_id: string;
+  declare project_id: string;
+  declare title: string;
+  declare description?: string | null;
+  declare identifier?: string | null;
+  declare remote_updated_at?: string | null;
+  declare is_archived?: boolean;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+SyncedWorkItem.init(
   {
     id: { type: DataTypes.STRING, allowNull: false, primaryKey: true, comment: 'PingCode 工作项 ID' },
     user_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true },
@@ -31,5 +40,5 @@ export const SyncedWorkItem: ModelDefined<
     remote_updated_at: { type: DataTypes.STRING, allowNull: true, comment: 'PingCode 工作项最后更新时间（ISO 字符串或时间戳）' },
     is_archived: { type: DataTypes.BOOLEAN, defaultValue: false, comment: 'PingCode 侧已删除/归档时标记为 true' },
   },
-  { tableName: 'synced_work_items', timestamps: true },
+  { sequelize, tableName: 'synced_work_items', timestamps: true },
 );

@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export interface PermissionAttributes {
@@ -12,8 +12,18 @@ export interface PermissionAttributes {
   updatedAt?: Date;
 }
 
-export const Permission: ModelDefined<PermissionAttributes, PermissionAttributes> = sequelize.define(
-  'Permission',
+export class Permission extends Model<PermissionAttributes, PermissionAttributes> {
+  declare id: string;
+  declare name: string;
+  declare display_name: string;
+  declare description?: string | null;
+  declare resource: string;
+  declare action: string;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+Permission.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     name: { type: DataTypes.STRING, allowNull: false, unique: true, comment: '权限名称，如 users.manage, projects.view' },
@@ -22,5 +32,5 @@ export const Permission: ModelDefined<PermissionAttributes, PermissionAttributes
     resource: { type: DataTypes.STRING, allowNull: false, comment: '资源类型，如 users, projects, work_items' },
     action: { type: DataTypes.STRING, allowNull: false, comment: '操作类型，如 view, create, update, delete, manage' },
   },
-  { tableName: 'permissions', timestamps: true },
+  { sequelize, tableName: 'permissions', timestamps: true },
 );

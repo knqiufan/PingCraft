@@ -1,4 +1,4 @@
-import { DataTypes, ModelDefined } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../services/db.js';
 
 export interface UserRoleAttributes {
@@ -8,11 +8,17 @@ export interface UserRoleAttributes {
   updatedAt?: Date;
 }
 
-export const UserRole: ModelDefined<UserRoleAttributes, UserRoleAttributes> = sequelize.define(
-  'UserRole',
+export class UserRole extends Model<UserRoleAttributes, UserRoleAttributes> {
+  declare user_id: string;
+  declare role_id: string;
+  declare createdAt?: Date;
+  declare updatedAt?: Date;
+}
+
+UserRole.init(
   {
     user_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true, comment: '用户ID' },
     role_id: { type: DataTypes.UUID, allowNull: false, primaryKey: true, comment: '角色ID' },
   },
-  { tableName: 'user_roles', timestamps: true },
+  { sequelize, tableName: 'user_roles', timestamps: true },
 );
