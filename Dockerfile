@@ -5,9 +5,11 @@ WORKDIR /app
 # 启用 pnpm（与项目包管理一致）
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# 先复制后端代码（.dockerignore 已排除 node_modules），再安装依赖
+# 先复制后端代码（.dockerignore 已排除 node_modules），安装全部依赖（含 typescript/tsx 以便编译）
 COPY backend/ ./backend/
-RUN cd backend && pnpm install --prod
+RUN cd backend && pnpm install
+# 编译 TypeScript -> dist/（生产运行 dist/index.js）
+RUN cd backend && pnpm run build
 
 # 再复制前端代码，安装依赖并构建（同源部署时 API 使用相对路径）
 COPY frontend/ ./frontend/
@@ -26,5 +28,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
 
-# 从项目根 /app 启动后端（后端通过 __dirname 解析 backend/.env 路径）
-CMD ["node", "backend/src/index.js"]
+# 从项目根 /app 启动后端（运行 tsc 编译产物 dist/index.js，后端通过 __dirname 解析 backend/.env 路径）
+CMD ["node", "backend/dist/index.js"]
