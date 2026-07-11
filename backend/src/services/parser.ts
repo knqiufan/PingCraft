@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import mammoth from 'mammoth';
 import path from 'path';
 
-export const parseFile = async (filePath, originalName) => {
+export const parseFile = async (filePath: string, originalName: string): Promise<string> => {
     const ext = path.extname(originalName).toLowerCase();
     if (ext === '.txt' || ext === '.md') {
         return await fs.readFile(filePath, 'utf-8');

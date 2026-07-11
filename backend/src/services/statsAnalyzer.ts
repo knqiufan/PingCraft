@@ -7,7 +7,7 @@ import { ModelConfig } from '../models/index.js';
 const statsPrompt = PromptTemplate.fromTemplate(ANALYZE_STATS_PROMPT);
 const stringParser = new StringOutputParser();
 
-function createOpenAIModel(config) {
+function createOpenAIModel(config: any) {
   return new ChatOpenAI({
     configuration: {
       baseURL: config.base_url || undefined,
@@ -19,7 +19,7 @@ function createOpenAIModel(config) {
   });
 }
 
-async function createAnthropicModel(config) {
+async function createAnthropicModel(config: any) {
   const mod = await import('@langchain/anthropic');
   return new mod.ChatAnthropic({
     anthropicApiKey: config.api_key,
@@ -30,7 +30,7 @@ async function createAnthropicModel(config) {
   });
 }
 
-async function getModelInstance(userId) {
+async function getModelInstance(userId: string): Promise<any> {
   let config = await ModelConfig.findOne({
     where: { user_id: userId, is_default: true },
   });
@@ -55,7 +55,7 @@ async function getModelInstance(userId) {
 /**
  * 使用 AI 分析项目统计数据，生成 Markdown 格式的分析报告
  */
-export async function analyzeProjectStats(statsData, userId) {
+export async function analyzeProjectStats(statsData: any, userId: string): Promise<string> {
   const model = await getModelInstance(userId);
   const chain = statsPrompt.pipe(model).pipe(stringParser);
 

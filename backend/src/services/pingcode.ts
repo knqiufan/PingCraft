@@ -13,10 +13,25 @@ export const PINGCODE_GRANT_CLIENT_CREDENTIALS = 'client_credentials';
 const THIRTY_DAYS_SEC = 30 * 24 * 3600;
 const MAX_EXPIRES_IN_SEC = 40 * 24 * 3600;
 
+/** 批量创建工作项进度回调的单条结果 */
+export interface BatchProgressItem {
+  title: string;
+  status: 'success' | 'failed';
+  error?: unknown;
+}
+
+/** 批量创建工作项结果 */
+export interface BatchCreateResult {
+  success: number;
+  failed: number;
+  errors: Array<{ local_id: unknown; item: unknown; error: unknown }>;
+  created: Array<{ local_id: unknown; pingcode_id?: string; pingcode_identifier?: string; title: unknown }>;
+}
+
 /**
  * 根据 token 接口返回计算 access_token 过期时间（expires_in 按秒解析，异常值回退/裁剪）
  */
-export function computeExpiresAtFromTokenResponse(tokenData) {
+export function computeExpiresAtFromTokenResponse(tokenData: { expires_in?: unknown }): Date {
   let sec = Number(tokenData?.expires_in);
   if (!Number.isFinite(sec) || sec <= 0) {
     return new Date(Date.now() + THIRTY_DAYS_SEC * 1000);
@@ -29,7 +44,7 @@ export function computeExpiresAtFromTokenResponse(tokenData) {
 
 /* ---- 域名与 API 地址处理 ---- */
 
-function normalizeHost(domain) {
+function normalizeHost(domain?: string | null): string {
   if (!domain) return pcConf.host;
 
   const isSaaS = !domain.includes('.') || domain.endsWith('.pingcode.com');
@@ -39,14 +54,14 @@ function normalizeHost(domain) {
   return `https://${domain}`;
 }
 
-function getApiBase(domain) {
+function getApiBase(domain?: string | null): string {
   return `${normalizeHost(domain)}/v1`;
 }
 
 /* ---- OAuth ---- */
 
 /** 生成 PingCode OAuth 授权 URL */
-export function getAuthUrl(clientId, state) {
+export function getAuthUrl(clientId: string, state?: string): string {
   const url = new URL('/oauth2/authorize', pcConf.host);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
@@ -59,7 +74,7 @@ export function getAuthUrl(clientId, state) {
 }
 
 /** 通过授权码获取令牌 */
-export async function getToken(code, clientId, clientSecret) {
+export async function getToken(code: string, clientId: string, clientSecret: string): Promise<any> {
   const url = new URL('/v1/auth/token', pcConf.host);
   url.searchParams.set('grant_type', 'authorization_code');
   url.searchParams.set('client_id', clientId);
@@ -72,12 +87,12 @@ export async function getToken(code, clientId, clientSecret) {
       const res = await axios.get(url.toString());
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getToken' }
+    { maxRetries: 2, label: 'PingCode:getToken' },
   );
 }
 
 /** 使用 refresh_token 刷新 access_token */
-export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
+export async function refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string): Promise<any> {
   const url = new URL('/v1/auth/token', pcConf.host);
   url.searchParams.set('grant_type', 'refresh_token');
   url.searchParams.set('client_id', clientId);
@@ -89,12 +104,12 @@ export async function refreshAccessToken(refreshToken, clientId, clientSecret) {
       const res = await axios.get(url.toString());
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:refreshToken' }
+    { maxRetries: 2, label: 'PingCode:refreshToken' },
   );
 }
 
 /** 企业令牌：client_credentials */
-export async function getEnterpriseToken(clientId, clientSecret) {
+export async function getEnterpriseToken(clientId: string, clientSecret: string): Promise<any> {
   const url = new URL('/v1/auth/token', pcConf.host);
   url.searchParams.set('grant_type', PINGCODE_GRANT_CLIENT_CREDENTIALS);
   url.searchParams.set('client_id', clientId);
@@ -105,14 +120,14 @@ export async function getEnterpriseToken(clientId, clientSecret) {
       const res = await axios.get(url.toString());
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getEnterpriseToken' }
+    { maxRetries: 2, label: 'PingCode:getEnterpriseToken' },
   );
 }
 
 /* ---- 项目与工作项 ---- */
 
 /** 获取用户可访问的项目列表 */
-export async function getProjects(token, domain) {
+export async function getProjects(token: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
@@ -121,7 +136,7 @@ export async function getProjects(token, domain) {
       });
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getProjects' }
+    { maxRetries: 2, label: 'PingCode:getProjects' },
   );
 }
 
@@ -134,24 +149,24 @@ export async function getProjects(token, domain) {
  *   - 主停止条件：本页返回条数 < page_size
  *   - 安全限制：最多拉取 100 页，避免分页参数异常导致死循环
  */
-export async function getWorkItems(token, projectId, domain) {
+export async function getWorkItems(token: string, projectId: string, domain?: string): Promise<any[]> {
   const apiBase = getApiBase(domain);
   const pageSize = 100;
   const MAX_PAGES = 100;
-  let allItems = [];
+  let allItems: any[] = [];
   let pageIndex = 0;
   let hasMore = true;
 
   while (hasMore && pageIndex < MAX_PAGES) {
-    const data = await withRetry(
+    const data: any = await withRetry(
       async () => {
         const res = await axios.get(
           `${apiBase}/project/work_items?project_id=${projectId}&page_size=${pageSize}&page_index=${pageIndex}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         return res.data;
       },
-      { maxRetries: 2, label: `PingCode:getWorkItems(page=${pageIndex})` }
+      { maxRetries: 2, label: `PingCode:getWorkItems(page=${pageIndex})` },
     );
 
     const items = Array.isArray(data) ? data : (data?.values || []);
@@ -171,7 +186,7 @@ export async function getWorkItems(token, projectId, domain) {
 
   if (pageIndex >= MAX_PAGES) {
     console.warn(
-      `[PingCode] getWorkItems 达到最大分页限制 ${MAX_PAGES}（项目 ${projectId}），可能存在超过 ${MAX_PAGES * pageSize} 条工作项被截断`
+      `[PingCode] getWorkItems 达到最大分页限制 ${MAX_PAGES}（项目 ${projectId}），可能存在超过 ${MAX_PAGES * pageSize} 条工作项被截断`,
     );
   }
 
@@ -179,17 +194,17 @@ export async function getWorkItems(token, projectId, domain) {
 }
 
 /** 获取工作项类型列表 */
-export async function getWorkItemTypes(token, projectId, domain) {
+export async function getWorkItemTypes(token: string, projectId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/work_item/types?project_id=${encodeURIComponent(projectId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getWorkItemTypes' }
+    { maxRetries: 2, label: 'PingCode:getWorkItemTypes' },
   );
 }
 
@@ -197,78 +212,69 @@ export async function getWorkItemTypes(token, projectId, domain) {
  * 获取项目成员列表（用于将 assignee_name 解析为 assignee_id）
  * PingCode API: GET /v1/project/projects/{projectId}/members
  */
-export async function getProjectMembers(token, projectId, domain) {
+export async function getProjectMembers(token: string, projectId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/projects/${encodeURIComponent(projectId)}/members`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getProjectMembers' }
+    { maxRetries: 2, label: 'PingCode:getProjectMembers' },
   );
 }
 
 /** 获取工作项状态列表 */
-export async function getWorkItemStates(token, projectId, workItemTypeId, domain) {
+export async function getWorkItemStates(token: string, projectId: string, workItemTypeId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/work_item/states?project_id=${encodeURIComponent(projectId)}&work_item_type_id=${encodeURIComponent(workItemTypeId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getWorkItemStates' }
+    { maxRetries: 2, label: 'PingCode:getWorkItemStates' },
   );
 }
 
 /** 获取工作项属性列表 */
-export async function getWorkItemProperties(token, projectId, workItemTypeId, domain) {
+export async function getWorkItemProperties(token: string, projectId: string, workItemTypeId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/work_item/properties?project_id=${encodeURIComponent(projectId)}&work_item_type_id=${encodeURIComponent(workItemTypeId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getWorkItemProperties' }
+    { maxRetries: 2, label: 'PingCode:getWorkItemProperties' },
   );
 }
 
 /** 获取工作项优先级列表 */
-export async function getWorkItemPriorities(token, projectId, domain) {
+export async function getWorkItemPriorities(token: string, projectId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/work_item/priorities?project_id=${encodeURIComponent(projectId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getWorkItemPriorities' }
+    { maxRetries: 2, label: 'PingCode:getWorkItemPriorities' },
   );
 }
 
 /**
  * 创建项目
- * @param {string} token - 访问令牌
- * @param {object} projectData - 项目数据
- * @param {string} projectData.name - 项目名称（必填）
- * @param {string} projectData.type - 项目类型（必填）: kanban, scrum, waterfall, hybrid
- * @param {string} projectData.identifier - 项目标识（必填）: 大写字母/数字/下划线/连接线，不超过15字符
- * @param {string} [projectData.description] - 项目描述
- * @param {string} [projectData.assignee_id] - 项目负责人 ID
- * @param {string} domain - 域名
- * @returns {Promise<object>} 创建的项目信息
  */
-export async function createProject(token, projectData, domain) {
+export async function createProject(token: string, projectData: Record<string, unknown>, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
@@ -277,16 +283,16 @@ export async function createProject(token, projectData, domain) {
       });
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:createProject' }
+    { maxRetries: 2, label: 'PingCode:createProject' },
   );
 }
 
 /**
  * 根据名称查找项目（精确匹配或模糊匹配）
  */
-export async function findProjectByName(token, projectName, domain) {
+export async function findProjectByName(token: string, projectName: string, domain?: string): Promise<any> {
   const projectsRes = await getProjects(token, domain);
-  const projectList = Array.isArray(projectsRes) ? projectsRes : (projectsRes?.values || []);
+  const projectList: any[] = Array.isArray(projectsRes) ? projectsRes : (projectsRes?.values || []);
 
   // 精确匹配
   const exactMatch = projectList.find((p) => p.name === projectName);
@@ -294,48 +300,43 @@ export async function findProjectByName(token, projectName, domain) {
 
   // 模糊匹配（忽略大小写）
   const fuzzyMatch = projectList.find(
-    (p) => p.name.toLowerCase() === projectName.toLowerCase()
+    (p) => p.name.toLowerCase() === projectName.toLowerCase(),
   );
   return fuzzyMatch || null;
 }
 
 /**
  * 更新单个工作项（P3-5.2）
- * @param {string} token - 访问令牌
- * @param {string} workItemId - 工作项 ID
- * @param {object} updateData - 需要更新的字段（如 title/description/state_id/priority_id/assignee_id 等）
- * @param {string} domain - 域名
- * @returns {Promise<object>} 更新后的工作项
  */
-export async function updateWorkItem(token, workItemId, updateData, domain) {
+export async function updateWorkItem(token: string, workItemId: string, updateData: Record<string, unknown>, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.patch(
         `${apiBase}/project/work_items/${encodeURIComponent(workItemId)}`,
         updateData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:updateWorkItem' }
+    { maxRetries: 2, label: 'PingCode:updateWorkItem' },
   );
 }
 
 /**
  * 获取单个工作项详情（P3-5.2）
  */
-export async function getWorkItemDetail(token, workItemId, domain) {
+export async function getWorkItemDetail(token: string, workItemId: string, domain?: string): Promise<any> {
   const apiBase = getApiBase(domain);
   return withRetry(
     async () => {
       const res = await axios.get(
         `${apiBase}/project/work_items/${encodeURIComponent(workItemId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       return res.data;
     },
-    { maxRetries: 2, label: 'PingCode:getWorkItemDetail' }
+    { maxRetries: 2, label: 'PingCode:getWorkItemDetail' },
   );
 }
 
@@ -344,17 +345,16 @@ export async function getWorkItemDetail(token, workItemId, domain) {
  *
  * 并发度由 PINGCODE_IMPORT_CONCURRENCY 控制（默认 3，可在 API 限流范围内提速）。
  * 进度回调仍按完成顺序触发，current 为累计已完成数量。
- *
- * @param {string} token - PingCode access token
- * @param {Array} items - 工作项数据数组，每项需包含 _local_id 用于关联本地记录
- * @param {string} domain - PingCode 域名
- * @param {Function} [onProgress] - 进度回调 (current, total, item) => void
- * @returns {Object} 包含 success, failed, errors, created 的结果对象
  */
-export async function createWorkItemsBatch(token, items, domain, onProgress) {
+export async function createWorkItemsBatch(
+  token: string,
+  items: any[],
+  domain: string,
+  onProgress?: (current: number, total: number, item: BatchProgressItem) => void,
+): Promise<BatchCreateResult> {
   const apiBase = getApiBase(domain);
   const concurrency = Math.max(1, parseInt(process.env.PINGCODE_IMPORT_CONCURRENCY || '3', 10));
-  const results = {
+  const results: BatchCreateResult = {
     success: 0,
     failed: 0,
     errors: [],
@@ -369,7 +369,7 @@ export async function createWorkItemsBatch(token, items, domain, onProgress) {
     const { _local_id, ...pingcodeItem } = item;
 
     try {
-      let createdItem = null;
+      let createdItem: any = null;
       await withRetry(
         async () => {
           const response = await axios.post(`${apiBase}/project/work_items`, pingcodeItem, {
@@ -377,7 +377,7 @@ export async function createWorkItemsBatch(token, items, domain, onProgress) {
           });
           createdItem = response.data;
         },
-        { maxRetries: 2, label: 'PingCode:createWorkItem' }
+        { maxRetries: 2, label: 'PingCode:createWorkItem' },
       );
       results.success++;
       results.created.push({
@@ -389,7 +389,7 @@ export async function createWorkItemsBatch(token, items, domain, onProgress) {
       if (onProgress) {
         onProgress(++completed, total, { title: pingcodeItem.title, status: 'success' });
       }
-    } catch (e) {
+    } catch (e: any) {
       results.failed++;
       const errorDetail = e.response?.data?.message || e.response?.data?.error || e.message;
       results.errors.push({
@@ -411,17 +411,17 @@ export async function createWorkItemsBatch(token, items, domain, onProgress) {
 /* ---- 用户信息 ---- */
 
 /** 从 JWT 中解析用户 ID */
-export function getUserIdFromToken(token) {
+export function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwtDecode(token);
-    return decoded.sub || decoded.uid || decoded.user_id;
+    const decoded = jwtDecode(token) as Record<string, unknown>;
+    return (decoded.sub || decoded.uid || decoded.user_id) as string | null;
   } catch {
     return null;
   }
 }
 
 /** 通过 API 获取用户信息（directory/users/me） */
-export async function fetchUserInfo(token, domain) {
+export async function fetchUserInfo(token: string, domain?: string): Promise<any> {
   try {
     const apiBase = getApiBase(domain);
     const res = await axios.get(`${apiBase}/directory/users/me`, {
@@ -434,7 +434,7 @@ export async function fetchUserInfo(token, domain) {
 }
 
 /** 获取当前登录用户信息（GET /v1/myself） */
-export async function getMyself(token, domain) {
+export async function getMyself(token: string, domain?: string): Promise<any> {
   try {
     const apiBase = getApiBase(domain);
     const res = await axios.get(`${apiBase}/myself`, {
@@ -442,7 +442,7 @@ export async function getMyself(token, domain) {
     });
     return res.data;
   } catch (e) {
-    console.warn('[PingCode] getMyself failed:', e.message);
+    console.warn('[PingCode] getMyself failed:', (e as Error).message);
     return null;
   }
 }

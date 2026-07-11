@@ -6,25 +6,20 @@ import { appConfig } from '../config/index.js';
 const { seekdb: dbConf } = appConfig;
 
 /** 关系数据库（OceanBase/MySQL 兼容） */
-export const sequelize = new Sequelize(
-  dbConf.database,
-  dbConf.user,
-  dbConf.password,
-  {
-    host: dbConf.host,
-    port: dbConf.port,
-    dialect: 'mysql',
-    logging: false,
-    pool: {
-      max: 5,
-      min: 1,
-      acquire: 30000,
-      idle: 10000,
-      /** 断线后自动剔除并重建连接，避免 SeekDB 重启后使用失效连接 */
-      evict: 5000,
-    },
-  }
-);
+export const sequelize = new Sequelize(dbConf.database, dbConf.user, dbConf.password, {
+  host: dbConf.host,
+  port: dbConf.port,
+  dialect: 'mysql',
+  logging: false,
+  pool: {
+    max: 5,
+    min: 1,
+    acquire: 30000,
+    idle: 10000,
+    /** 断线后自动剔除并重建连接，避免 SeekDB 重启后使用失效连接 */
+    evict: 5000,
+  },
+});
 
 /** 向量数据库客户端 */
 export const seekdbClient = new SeekdbClient({
@@ -35,10 +30,10 @@ export const seekdbClient = new SeekdbClient({
   database: dbConf.database,
 });
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** 连接关系数据库并同步模型 */
-async function connectRelational() {
+async function connectRelational(): Promise<void> {
   await sequelize.authenticate();
   // 导入 models/index.js 以确保所有模型和关联关系都被注册
   await import('../models/index.js');
@@ -58,7 +53,7 @@ async function connectRelational() {
 }
 
 /** 初始化默认角色 */
-async function initDefaultRoles() {
+async function initDefaultRoles(): Promise<void> {
   const { Role } = await import('../models/index.js');
 
   const defaultRoles = [
@@ -88,7 +83,7 @@ async function initDefaultRoles() {
 }
 
 /** 初始化默认管理员账号（admin / qwe@123） */
-async function initDefaultAdmin() {
+async function initDefaultAdmin(): Promise<void> {
   const { User, Role, UserRole } = await import('../models/index.js');
 
   const existingUser = await User.findOne({ where: { username: 'admin' } });
@@ -115,7 +110,7 @@ async function initDefaultAdmin() {
 }
 
 /** 初始化向量集合 */
-async function initCollections() {
+async function initCollections(): Promise<void> {
   const collections = ['projects', 'work_items'];
   for (const name of collections) {
     try {
@@ -127,7 +122,7 @@ async function initCollections() {
 }
 
 /** 初始化数据库（带重试） */
-export async function initDB() {
+export async function initDB(): Promise<void> {
   const { retryCount, retryIntervalMs } = dbConf;
 
   for (let i = 0; i < retryCount; i++) {
@@ -140,7 +135,7 @@ export async function initDB() {
       return;
     } catch (err) {
       if (i === retryCount - 1) {
-        console.error('[DB] 数据库连接失败，请确认 SeekDB 服务已启动。', err.message);
+        console.error('[DB] 数据库连接失败，请确认 SeekDB 服务已启动。', (err as Error).message);
         throw err;
       }
       console.warn(`[DB] 连接失败，${retryIntervalMs}ms 后重试（${i + 1}/${retryCount}）`);

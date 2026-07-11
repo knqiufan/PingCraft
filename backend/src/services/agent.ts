@@ -10,12 +10,33 @@ const parser = new JsonOutputParser();
 /** 需求分析 Prompt 模板 */
 const analyzePrompt = PromptTemplate.fromTemplate(ANALYZE_REQUIREMENTS_PROMPT);
 
+/** LLM 配置（模型实例 / 前端测试连接均满足此结构） */
+interface LLMConfig {
+  provider?: string | null;
+  api_key: string;
+  base_url?: string | null;
+  model: string;
+  temperature?: number | null;
+  max_tokens?: number | null;
+}
+
+/** 规范化后的工作项结构 */
+export interface NormalizedWorkItem {
+  project_name: string;
+  title: string;
+  description: string;
+  priority: 'High' | 'Medium' | 'Low';
+  estimated_hours: number;
+  start_at: string;
+  type_id: string;
+  assignee_name: string | null;
+  solution_suggestion: string;
+}
+
 /**
  * 根据 provider 创建 OpenAI 兼容的 LLM 实例
- * @param {object} config - 模型配置
- * @returns {ChatOpenAI} LLM 实例
  */
-function createOpenAIModel(config) {
+function createOpenAIModel(config: LLMConfig): ChatOpenAI {
   return new ChatOpenAI({
     configuration: {
       baseURL: config.base_url || undefined,
@@ -29,18 +50,16 @@ function createOpenAIModel(config) {
 
 /**
  * 根据 provider 创建 Anthropic 的 LLM 实例（动态加载依赖，未安装时抛出明确错误）
- * @param {object} config - 模型配置
- * @returns {Promise<import('@langchain/anthropic').ChatAnthropic>} LLM 实例
  */
-async function createAnthropicModel(config) {
+async function createAnthropicModel(config: LLMConfig): Promise<any> {
   let ChatAnthropic;
   try {
     const mod = await import('@langchain/anthropic');
     ChatAnthropic = mod.ChatAnthropic;
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === 'ERR_MODULE_NOT_FOUND' || err.message?.includes('Cannot find package')) {
       throw new Error(
-        '使用 Anthropic 模型需要先安装依赖，请在 backend 目录执行: pnpm add @langchain/anthropic'
+        '使用 Anthropic 模型需要先安装依赖，请在 backend 目录执行: pnpm add @langchain/anthropic',
       );
     }
     throw err;
@@ -57,10 +76,8 @@ async function createAnthropicModel(config) {
 /**
  * 获取 LLM 模型实例（仅从模型管理中获取）
  * 优先使用用户默认模型，若无则使用第一个配置
- * @param {string} userId - 用户ID
- * @returns {Promise<ChatOpenAI|ChatAnthropic>} LLM 模型实例
  */
-async function getModelInstance(userId) {
+async function getModelInstance(userId: string): Promise<any> {
   // 1. 优先获取用户默认模型配置
   let config = await ModelConfig.findOne({
     where: { user_id: userId, is_default: true },
@@ -88,10 +105,9 @@ async function getModelInstance(userId) {
 
 /**
  * 测试模型连接是否可用
- * @param {object} config - 模型配置 { provider, api_key, base_url?, model, temperature?, max_tokens? }
- * @throws {Error} 连接失败时抛出
+ * @throws 连接失败时抛出
  */
-export async function testModelConnection(config) {
+export async function testModelConnection(config: LLMConfig): Promise<void> {
   const model = config.provider === 'anthropic'
     ? await createAnthropicModel(config)
     : createOpenAIModel(config);
@@ -100,28 +116,17 @@ export async function testModelConnection(config) {
 
 /**
  * 调用 LLM 分析需求文档并提取工作项
- * @param {string} text - 文档文本内容
- * @param {string} userId - 用户ID
- * @returns {Promise<Array>} 工作项列表，每项包含：
- *   - project_name: 项目名称
- *   - title: 工作项标题
- *   - description: 详细描述
- *   - priority: 优先级 (High/Medium/Low)
- *   - estimated_hours: 预估工时（小时）
- *   - start_at: 计划开始时间 (ISO 8601)
- *   - assignee_name: 负责人姓名（可选）
- *   - solution_suggestion: 解决方案建议
  */
-export async function analyzeRequirements(text, userId) {
+export async function analyzeRequirements(text: string, userId: string): Promise<NormalizedWorkItem[]> {
   const result = await analyzeRequirementsRaw(text, userId);
   return normalizeWorkItems(result);
 }
 
 /** 将 LLM 原始输出规范化为统一的工作项结构 */
-function normalizeWorkItems(result) {
+function normalizeWorkItems(result: unknown): NormalizedWorkItem[] {
   const typeIdAllowList = ['story', 'task', 'bug', 'feature', 'epic'];
   const currentTime = new Date().toISOString();
-  const workItems = Array.isArray(result) ? result : [];
+  const workItems: any[] = Array.isArray(result) ? result : [];
   return workItems.map((item) => ({
     project_name: item.project_name || '未分类项目',
     title: item.title || '未命名工作项',
@@ -136,7 +141,7 @@ function normalizeWorkItems(result) {
 }
 
 /** 底层调用：返回 LLM 原始解析结果（供非流式和流式复用） */
-async function analyzeRequirementsRaw(text, userId) {
+async function analyzeRequirementsRaw(text: string, userId: string): Promise<unknown> {
   const model = await getModelInstance(userId);
   const chain = analyzePrompt.pipe(model).pipe(parser);
   const currentTime = new Date().toISOString();
@@ -148,7 +153,7 @@ async function analyzeRequirementsRaw(text, userId) {
       format_instructions: parser.getFormatInstructions(),
     });
   } catch (e) {
-    console.error('[Agent] 需求分析失败:', e.message);
+    console.error('[Agent] 需求分析失败:', (e as Error).message);
     throw e;
   }
 }
@@ -159,17 +164,18 @@ async function analyzeRequirementsRaw(text, userId) {
  * LangChain 的 chain.stream() 配合 JsonOutputParser 会逐步 yield 已解析的部分结果。
  * 通过 onProgress 回调将部分结果推送给前端（SSE），让用户在大文档分析时获得实时反馈。
  *
- * @param {string} text - 文档文本
- * @param {string} userId - 用户 ID
- * @param {Function} [onProgress] - 回调 (partialItems: Array) => void，收到部分结果时触发
- * @returns {Promise<Array>} 最终完整的工作项列表
+ * @param onProgress 回调 (partialItems) => void，收到部分结果时触发
  */
-export async function analyzeRequirementsStream(text, userId, onProgress) {
+export async function analyzeRequirementsStream(
+  text: string,
+  userId: string,
+  onProgress?: (partialItems: NormalizedWorkItem[]) => void,
+): Promise<NormalizedWorkItem[]> {
   const model = await getModelInstance(userId);
   const chain = analyzePrompt.pipe(model).pipe(parser);
   const currentTime = new Date().toISOString();
 
-  let lastResult = null;
+  let lastResult: unknown = null;
   try {
     const stream = await chain.stream({
       text,
@@ -185,7 +191,7 @@ export async function analyzeRequirementsStream(text, userId, onProgress) {
       }
     }
   } catch (e) {
-    console.error('[Agent] 流式需求分析失败:', e.message);
+    console.error('[Agent] 流式需求分析失败:', (e as Error).message);
     // 流式失败时回退到非流式调用
     if (lastResult) {
       return normalizeWorkItems(lastResult);
@@ -194,6 +200,6 @@ export async function analyzeRequirementsStream(text, userId, onProgress) {
   }
 
   // 流结束后用最终结果规范化（可能比最后一块更完整）
-  const finalRaw = lastResult || await analyzeRequirementsRaw(text, userId);
+  const finalRaw = lastResult || (await analyzeRequirementsRaw(text, userId));
   return normalizeWorkItems(finalRaw);
 }

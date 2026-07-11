@@ -22,26 +22,37 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEMAND_DIR = path.resolve(__dirname, '../../uploads/demand');
 const DEFAULT_TTL_HOURS = 30 * 24; // 30 天
 
+export interface CleanupResult {
+  deleted: number;
+  skipped: number;
+  errors: number;
+}
+
+export interface CleanupOptions {
+  /** 文件保留时长（小时） */
+  ttlHours?: number;
+  /** 当前时间（供测试注入） */
+  now?: Date;
+  /** 目录路径（供测试注入） */
+  dir?: string;
+}
+
 /**
  * 清理过期的 demand 文件。
- * @param {object} [options]
- * @param {number} [options.ttlHours] - 文件保留时长（小时）
- * @param {Date} [options.now] - 当前时间（供测试注入）
- * @returns {Promise<{deleted: number, skipped: number, errors: number}>}
  */
-export async function cleanupDemandFiles(options = {}) {
+export async function cleanupDemandFiles(options: CleanupOptions = {}): Promise<CleanupResult> {
   const ttlHours = options.ttlHours ?? (Number(process.env.DEMAND_FILE_TTL_HOURS) || DEFAULT_TTL_HOURS);
   const now = options.now || new Date();
   const dir = options.dir || DEMAND_DIR;
   const ttlMs = ttlHours * 3600 * 1000;
 
-  const result = { deleted: 0, skipped: 0, errors: 0 };
+  const result: CleanupResult = { deleted: 0, skipped: 0, errors: 0 };
 
-  let files;
+  let files: string[];
   try {
     files = await fs.readdir(dir);
   } catch (e) {
-    if (e.code === 'ENOENT') return result; // 目录不存在，无需清理
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return result; // 目录不存在，无需清理
     throw e;
   }
 
@@ -54,7 +65,7 @@ export async function cleanupDemandFiles(options = {}) {
     referencedRecords
       .map((r) => r.original_file_path)
       .filter(Boolean)
-      .map((p) => path.normalize(p))
+      .map((p) => path.normalize(p as string)),
   );
 
   for (const file of files) {
@@ -72,7 +83,7 @@ export async function cleanupDemandFiles(options = {}) {
       } else {
         result.skipped++;
       }
-    } catch (e) {
+    } catch {
       // 文件可能已被删除或无权限，记录错误继续
       result.errors++;
     }
@@ -85,10 +96,11 @@ export async function cleanupDemandFiles(options = {}) {
  * 启动定时清理任务（每小时执行一次）。
  * 在服务启动时调用，返回定时器引用以便测试或优雅关闭。
  */
-export function startCleanupSchedule(intervalMs = 60 * 60 * 1000) {
+export function startCleanupSchedule(
+  intervalMs = 60 * 60 * 1000,
+): { initialTimer: NodeJS.Timeout; timer: NodeJS.Timeout } {
   // 首次延迟 5 分钟执行，避免启动时立即触发 IO
   const initialDelay = 5 * 60 * 1000;
-  let timer;
 
   const runOnce = async () => {
     try {
@@ -97,12 +109,12 @@ export function startCleanupSchedule(intervalMs = 60 * 60 * 1000) {
         console.log(`[UploadCleanup] 清理 ${result.deleted} 个过期需求文档`);
       }
     } catch (e) {
-      console.error('[UploadCleanup] 清理失败:', e.message);
+      console.error('[UploadCleanup] 清理失败:', (e as Error).message);
     }
   };
 
   const initialTimer = setTimeout(runOnce, initialDelay);
-  timer = setInterval(runOnce, intervalMs);
+  const timer = setInterval(runOnce, intervalMs);
 
   return { initialTimer, timer };
 }

@@ -14,37 +14,53 @@ import { runWithConcurrency } from '../utils/array.js';
 
 const CONCURRENCY_LIMIT = 3;
 
+export interface MetadataCounts {
+  types: number;
+  states: number;
+  properties: number;
+  priorities: number;
+}
+
+export interface PingCodeProject {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
 /**
  * 拉取并存储单个项目的全部元数据（types / states / properties / priorities）
  * 支持增量写入：已存在的记录会被跳过
  */
 export async function fetchAndStoreMetadataForProject(
-  userId, accessToken, domain, projectId,
-  existingTypeIds = new Set(),
-  existingStateIds = new Set(),
-  existingPropertyIds = new Set(),
-  existingPriorityIds = new Set()
-) {
-  const counts = { types: 0, states: 0, properties: 0, priorities: 0 };
+  userId: string,
+  accessToken: string,
+  domain: string,
+  projectId: string,
+  existingTypeIds: Set<string> = new Set(),
+  existingStateIds: Set<string> = new Set(),
+  existingPropertyIds: Set<string> = new Set(),
+  existingPriorityIds: Set<string> = new Set(),
+): Promise<MetadataCounts> {
+  const counts: MetadataCounts = { types: 0, states: 0, properties: 0, priorities: 0 };
 
   const typesRes = await getWorkItemTypes(accessToken, projectId, domain);
-  const typeList = Array.isArray(typesRes) ? typesRes : (typesRes?.values || []);
+  const typeList: any[] = Array.isArray(typesRes) ? typesRes : (typesRes?.values || []);
 
-  const newTypes = typeList.filter(t => !existingTypeIds.has(`${projectId}:${t.id}`));
+  const newTypes = typeList.filter((t) => !existingTypeIds.has(`${projectId}:${t.id}`));
   if (newTypes.length > 0) {
     await WorkItemType.bulkCreate(
-      newTypes.map(t => ({
+      newTypes.map((t) => ({
         id: t.id, project_id: projectId, user_id: userId,
         name: t.name || t.id, group: t.group || '',
       })),
-      { ignoreDuplicates: true }
+      { ignoreDuplicates: true },
     );
-    newTypes.forEach(t => existingTypeIds.add(`${projectId}:${t.id}`));
+    newTypes.forEach((t) => existingTypeIds.add(`${projectId}:${t.id}`));
     counts.types = newTypes.length;
   }
 
-  const statesBatch = [];
-  const propsBatch = [];
+  const statesBatch: any[] = [];
+  const propsBatch: any[] = [];
 
   // P2-4.13: type 级别也限制并发，避免大量类型一次性打满 PingCode API 限流
   await runWithConcurrency(
@@ -53,8 +69,8 @@ export async function fetchAndStoreMetadataForProject(
         getWorkItemStates(accessToken, projectId, t.id, domain),
         getWorkItemProperties(accessToken, projectId, t.id, domain),
       ]);
-      const stateList = Array.isArray(statesRes) ? statesRes : (statesRes?.values || []);
-      const propList = Array.isArray(propsRes) ? propsRes : (propsRes?.values || []);
+      const stateList: any[] = Array.isArray(statesRes) ? statesRes : (statesRes?.values || []);
+      const propList: any[] = Array.isArray(propsRes) ? propsRes : (propsRes?.values || []);
 
       for (const s of stateList) {
         const key = `${projectId}:${t.id}:${s.id}`;
@@ -77,7 +93,7 @@ export async function fetchAndStoreMetadataForProject(
         existingPropertyIds.add(key);
       }
     }),
-    CONCURRENCY_LIMIT
+    CONCURRENCY_LIMIT,
   );
 
   if (statesBatch.length > 0) {
@@ -90,16 +106,16 @@ export async function fetchAndStoreMetadataForProject(
   }
 
   const prioRes = await getWorkItemPriorities(accessToken, projectId, domain);
-  const prioList = Array.isArray(prioRes) ? prioRes : (prioRes?.values || []);
-  const newPrios = prioList.filter(p => !existingPriorityIds.has(`${projectId}:${p.id}`));
+  const prioList: any[] = Array.isArray(prioRes) ? prioRes : (prioRes?.values || []);
+  const newPrios = prioList.filter((p) => !existingPriorityIds.has(`${projectId}:${p.id}`));
   if (newPrios.length > 0) {
     await WorkItemPriority.bulkCreate(
-      newPrios.map(p => ({
+      newPrios.map((p) => ({
         id: p.id, project_id: projectId, user_id: userId, name: p.name || p.id,
       })),
-      { ignoreDuplicates: true }
+      { ignoreDuplicates: true },
     );
-    newPrios.forEach(p => existingPriorityIds.add(`${projectId}:${p.id}`));
+    newPrios.forEach((p) => existingPriorityIds.add(`${projectId}:${p.id}`));
     counts.priorities = newPrios.length;
   }
 
@@ -109,7 +125,12 @@ export async function fetchAndStoreMetadataForProject(
 /**
  * 批量确保多个项目的元数据（增量同步）
  */
-export async function ensureMetadata(userId, accessToken, domain, projectList) {
+export async function ensureMetadata(
+  userId: string,
+  accessToken: string,
+  domain: string,
+  projectList: PingCodeProject[],
+): Promise<void> {
   console.log('[Sync] 开始增量同步元数据...');
 
   const [existingTypes, existingStates, existingProperties, existingPriorities] = await Promise.all([
@@ -119,16 +140,16 @@ export async function ensureMetadata(userId, accessToken, domain, projectList) {
     WorkItemPriority.findAll({ where: { user_id: userId }, attributes: ['id', 'project_id'] }),
   ]);
 
-  const existingTypeIds = new Set(existingTypes.map(t => `${t.project_id}:${t.id}`));
-  const existingStateIds = new Set(existingStates.map(s => `${s.project_id}:${s.work_item_type_id}:${s.id}`));
-  const existingPropertyIds = new Set(existingProperties.map(p => `${p.project_id}:${p.work_item_type_id}:${p.id}`));
-  const existingPriorityIds = new Set(existingPriorities.map(p => `${p.project_id}:${p.id}`));
+  const existingTypeIds = new Set(existingTypes.map((t) => `${t.project_id}:${t.id}`));
+  const existingStateIds = new Set(existingStates.map((s) => `${s.project_id}:${s.work_item_type_id}:${s.id}`));
+  const existingPropertyIds = new Set(existingProperties.map((p) => `${p.project_id}:${p.work_item_type_id}:${p.id}`));
+  const existingPriorityIds = new Set(existingPriorities.map((p) => `${p.project_id}:${p.id}`));
 
   const tasks = projectList.map((proj) => () =>
     fetchAndStoreMetadataForProject(
       userId, accessToken, domain, proj.id,
       existingTypeIds, existingStateIds, existingPropertyIds, existingPriorityIds,
-    )
+    ),
   );
 
   const allCounts = await runWithConcurrency(tasks, CONCURRENCY_LIMIT);
@@ -139,7 +160,7 @@ export async function ensureMetadata(userId, accessToken, domain, projectList) {
       properties: acc.properties + (c?.properties || 0),
       priorities: acc.priorities + (c?.priorities || 0),
     }),
-    { types: 0, states: 0, properties: 0, priorities: 0 }
+    { types: 0, states: 0, properties: 0, priorities: 0 },
   );
 
   console.log(`[Sync] 元数据增量同步完成：+${totals.types} types, +${totals.states} states, +${totals.properties} properties, +${totals.priorities} priorities`);
