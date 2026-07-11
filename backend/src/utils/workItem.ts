@@ -3,19 +3,27 @@
  */
 
 /** 工时单位配置：minute / hour / day（与 PingCode 企业设置一致） */
-function getWorkloadUnit() {
+type WorkloadUnit = 'minute' | 'hour' | 'day';
+
+function getWorkloadUnit(): WorkloadUnit {
   const unit = (process.env.PINGCODE_WORKLOAD_UNIT || 'hour').toLowerCase();
-  return ['minute', 'hour', 'day'].includes(unit) ? unit : 'hour';
+  return (['minute', 'hour', 'day'] as const).includes(unit as WorkloadUnit)
+    ? (unit as WorkloadUnit)
+    : 'hour';
 }
 
 /** 每单位对应的小时数 */
-const UNIT_TO_HOURS = { minute: 1 / 60, hour: 1, day: 8 };
+const UNIT_TO_HOURS: Record<WorkloadUnit, number> = {
+  minute: 1 / 60,
+  hour: 1,
+  day: 8,
+};
 
 /**
  * 将「小时」转换为 PingCode estimated_workload 所需单位（配置项 PINGCODE_WORKLOAD_UNIT）。
  * 默认 'hour'（向后兼容），可配置为 'minute' / 'day'。
  */
-export function hoursToWorkload(hours) {
+export function hoursToWorkload(hours: unknown): number | null {
   if (typeof hours !== 'number' || !isFinite(hours) || hours <= 0) return null;
   const unit = getWorkloadUnit();
   const factor = UNIT_TO_HOURS[unit];
@@ -25,11 +33,18 @@ export function hoursToWorkload(hours) {
 /**
  * 将 PingCode estimated_workload（按配置单位）转换回「小时」，用于统计展示。
  */
-export function workloadToHours(workload) {
+export function workloadToHours(workload: unknown): number {
   if (typeof workload !== 'number' || !isFinite(workload) || workload <= 0) return 0;
   const unit = getWorkloadUnit();
   const factor = UNIT_TO_HOURS[unit];
   return Math.round(workload * factor * 1000) / 1000;
+}
+
+/** extractWorkItemIds 返回的 ID 三元组 */
+export interface WorkItemIds {
+  typeId: string | null;
+  priorityId: string | null;
+  stateId: string | null;
 }
 
 /**
@@ -40,7 +55,7 @@ export function workloadToHours(workload) {
  *
  * 当字段为对象时仅取 .id，避免把整个对象当 ID 传入 Map 查找。
  */
-export function extractWorkItemIds(item) {
+export function extractWorkItemIds(item: Record<string, any> | null | undefined): WorkItemIds {
   if (!item) return { typeId: null, priorityId: null, stateId: null };
   const rawType = item.work_item_type_id || item.type_id || item.type;
   const rawPriority = item.priority_id || item.priority;
@@ -57,7 +72,7 @@ export function extractWorkItemIds(item) {
  * 生成项目标识符（identifier）
  * 加入随机后缀避免同一时间并发创建项目时发生碰撞（PingCode 要求 identifier 企业内唯一）。
  */
-export function generateProjectIdentifier(projectName) {
+export function generateProjectIdentifier(projectName: string): string {
   const cleaned = projectName
     .replace(/[^\w\s一-龥]/g, '')
     .trim();
@@ -82,7 +97,7 @@ export function generateProjectIdentifier(projectName) {
 /**
  * 将 ISO 日期字符串或 Date 转换为 Unix 时间戳（秒）
  */
-export function toUnixTimestamp(dateInput) {
+export function toUnixTimestamp(dateInput: string | number | Date | null | undefined): number | null {
   if (!dateInput) return null;
   if (typeof dateInput === 'number') {
     return dateInput > 9999999999 ? Math.floor(dateInput / 1000) : dateInput;
@@ -98,7 +113,7 @@ const UUID_SHORT_RE = /^[0-9a-fA-F]{32}$/;
 const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
 
 /** 判断字符串是否为 UUID / ObjectId 形式（已经是可以直接使用的 ID，无需再映射） */
-export function isUuidLike(value) {
+export function isUuidLike(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   return UUID_RE.test(value) || OBJECT_ID_RE.test(value) || UUID_SHORT_RE.test(value);
 }
@@ -106,7 +121,7 @@ export function isUuidLike(value) {
 /**
  * 解析 type_id：若已经是 UUID/ObjId 直接返回，否则按名称查映射表。
  */
-export function resolveTypeId(typeId, typeNameMap) {
+export function resolveTypeId(typeId: string | null | undefined, typeNameMap: Map<string, string>): string {
   if (!typeId) return typeNameMap.get('story') || 'story';
   if (isUuidLike(typeId)) return typeId;
   const mapped = typeNameMap.get(typeId.toLowerCase());
@@ -116,7 +131,11 @@ export function resolveTypeId(typeId, typeNameMap) {
 /**
  * 解析 priority_id：若已经是 UUID/ObjId 直接返回，否则按名称查映射表。
  */
-export function resolvePriorityId(priorityId, priorityName, priorityNameMap) {
+export function resolvePriorityId(
+  priorityId: string | null | undefined,
+  priorityName: string | null | undefined,
+  priorityNameMap: Map<string, string>,
+): string | null {
   if (priorityId && isUuidLike(priorityId)) return priorityId;
   if (priorityId) {
     const mapped = priorityNameMap.get(priorityId.toLowerCase());

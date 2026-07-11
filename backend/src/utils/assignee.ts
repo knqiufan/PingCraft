@@ -5,12 +5,26 @@
  *   1. 精确匹配 name / display_name（忽略大小写、首尾空格）
  *   2. 包含匹配（assignee_name 出现在 name 或 display_name 中，或反之）
  *   3. 无匹配 → 返回 null（调用方回退到当前用户）
- *
- * @param {string|null} assigneeName - 从需求文档识别的负责人姓名
- * @param {Array} members - PingCode 成员列表，每项形如 { id, name, display_name, email, ... }
- * @returns {string|null} 匹配到的成员 ID，未匹配返回 null
  */
-export function resolveAssigneeId(assigneeName, members) {
+
+/** PingCode 项目成员（仅声明本工具依赖的字段） */
+export interface ProjectMember {
+  id: string;
+  name?: string;
+  display_name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * @param assigneeName - 从需求文档识别的负责人姓名
+ * @param members - PingCode 成员列表，每项形如 { id, name, display_name, email, ... }
+ * @returns 匹配到的成员 ID，未匹配返回 null
+ */
+export function resolveAssigneeId(
+  assigneeName: string | null | undefined,
+  members: ProjectMember[],
+): string | null {
   if (!assigneeName || !Array.isArray(members) || members.length === 0) {
     return null;
   }

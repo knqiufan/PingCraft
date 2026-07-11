@@ -12,7 +12,7 @@ import crypto from 'node:crypto';
 const PREFIX = 'enc:v1:';
 
 /** 解析 32 字节主密钥：优先 hex/base64，否则按 SHA-256 派生 */
-function resolveKey() {
+function resolveKey(): Buffer {
   const raw = process.env.ENCRYPTION_KEY || '';
   if (!raw) {
     // 开发环境兜底：派生固定 key（生产环境必须设置 ENCRYPTION_KEY）
@@ -28,19 +28,19 @@ function resolveKey() {
   return crypto.createHash('sha256').update(raw).digest();
 }
 
-let _key = null;
-function getKey() {
+let _key: Buffer | null = null;
+function getKey(): Buffer {
   if (!_key) _key = resolveKey();
   return _key;
 }
 
 /** 重置缓存的密钥（主要供测试切换 ENCRYPTION_KEY 后使用） */
-export function _resetKey() {
+export function _resetKey(): void {
   _key = null;
 }
 
 /** 是否为加密格式（以 enc:v1: 前缀开头） */
-export function isEncrypted(value) {
+export function isEncrypted(value: unknown): boolean {
   return typeof value === 'string' && value.startsWith(PREFIX);
 }
 
@@ -48,7 +48,7 @@ export function isEncrypted(value) {
  * 加密明文，返回 `enc:v1:<iv>:<ciphertext>:<tag>` 格式字符串。
  * 传入 null/undefined/空串原样返回。
  */
-export function encrypt(plaintext) {
+export function encrypt(plaintext: string | null | undefined): string | null | undefined {
   if (plaintext === null || plaintext === undefined) return plaintext;
   if (plaintext === '') return '';
   const str = String(plaintext);
@@ -64,7 +64,7 @@ export function encrypt(plaintext) {
 /**
  * 解密加密字符串。若输入不是加密格式（明文旧数据），原样返回。
  */
-export function decrypt(value) {
+export function decrypt<T>(value: T): T {
   if (typeof value !== 'string' || !isEncrypted(value)) return value;
 
   try {
@@ -78,7 +78,7 @@ export function decrypt(value) {
     const decipher = crypto.createDecipheriv('aes-256-gcm', getKey(), iv);
     decipher.setAuthTag(tag);
     const decrypted = Buffer.concat([decipher.update(ct), decipher.final()]);
-    return decrypted.toString('utf8');
+    return decrypted.toString('utf8') as unknown as T;
   } catch {
     // 解密失败（密钥变更等），返回原值避免崩溃
     console.warn('[Crypto] 解密失败，可能密钥已变更或数据损坏，返回原值');
@@ -90,10 +90,10 @@ export function decrypt(value) {
  * 对 API Key 等敏感串做脱敏：保留首尾少量字符，中间用 **** 代替。
  * `sk-abcd1234efgh` → `sk-ab****efgh`
  */
-export function maskSecret(value) {
+export function maskSecret(value: string | null | undefined): string {
   if (!value || typeof value !== 'string') return '';
   // 先解密（如果存储时被加密），再脱敏
-  const plain = isEncrypted(value) ? decrypt(value) : value;
+  const plain = isEncrypted(value) ? (decrypt(value) as string) : value;
   if (!plain) return '';
   if (plain.length <= 8) return '****';
   const head = plain.slice(0, Math.min(6, Math.floor(plain.length / 4)));

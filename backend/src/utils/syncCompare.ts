@@ -3,13 +3,32 @@
  * 纯逻辑函数，从 sync.js 抽出以便单元测试。
  */
 
+/** PingCode 远端工作项（仅声明比较依赖的字段，实际对象字段更多） */
+export interface RemoteItem {
+  updated_at?: string;
+  updatedAt?: string;
+  last_modified?: string;
+  title?: string;
+  description?: string | null;
+  [key: string]: unknown;
+}
+
+/** 本地同步缓存行 */
+export interface SyncedRecord {
+  is_archived?: boolean;
+  remote_updated_at?: string | null;
+  title?: string;
+  description?: string | null;
+  [key: string]: unknown;
+}
+
 /** 提取 PingCode 对象的更新时间，用于增量同步判断 */
-export function remoteUpdatedAt(obj) {
+export function remoteUpdatedAt(obj: RemoteItem | null | undefined): string | null {
   return obj?.updated_at || obj?.updatedAt || obj?.last_modified || null;
 }
 
 /** 规范化更新时间为可比较字符串（ISO 或时间戳字符串） */
-export function normUpdateKey(v) {
+export function normUpdateKey(v: unknown): string {
   if (!v) return '';
   return String(v);
 }
@@ -20,12 +39,15 @@ export function normUpdateKey(v) {
  *   2. 远端有 updated_at 且与本地不同 → 需要更新
  *   3. 远端无 updated_at 时，比较 title/description 内容是否变化
  *
- * @param {object} existing - 本地缓存行（含 is_archived, remote_updated_at, title, description）
- * @param {object} remoteItem - PingCode 返回的对象
- * @param {string|null} remoteUpdated - 远端更新时间
- * @returns {boolean}
+ * @param existing - 本地缓存行（含 is_archived, remote_updated_at, title, description）
+ * @param remoteItem - PingCode 返回的对象
+ * @param remoteUpdated - 远端更新时间
  */
-export function needsUpdate(existing, remoteItem, remoteUpdated) {
+export function needsUpdate(
+  existing: SyncedRecord | null | undefined,
+  remoteItem: RemoteItem | null | undefined,
+  remoteUpdated: string | null | undefined,
+): boolean {
   // 归档项重新出现，强制更新以取消归档
   if (existing?.is_archived) return true;
 
