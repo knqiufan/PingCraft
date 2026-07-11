@@ -102,7 +102,7 @@ router.get('/priorities', requireAuth, async (req, res, next) => {
 router.get('/projects', requireAuth, async (req, res, next) => {
   try {
     const list = await SyncedProject.findAll({
-      where: { user_id: req.user.id },
+      where: { user_id: req.user.id, is_archived: false },
       order: [['name', 'ASC']],
     });
     res.json(success(list));
@@ -115,7 +115,7 @@ router.get('/work-items', requireAuth, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const projectId = req.query.project_id;
-    const where = { user_id: userId };
+    const where = { user_id: userId, is_archived: false };
     if (projectId) where.project_id = projectId;
 
     const list = await SyncedWorkItem.findAll({
@@ -152,8 +152,8 @@ router.get('/overview', requireAuth, async (req, res, next) => {
     const userId = req.user.id;
 
     const [projectsCount, workItemsCount, typesCount, statesCount] = await Promise.all([
-      SyncedProject.count({ where: { user_id: userId } }),
-      SyncedWorkItem.count({ where: { user_id: userId } }),
+      SyncedProject.count({ where: { user_id: userId, is_archived: false } }),
+      SyncedWorkItem.count({ where: { user_id: userId, is_archived: false } }),
       WorkItemType.count({ where: { user_id: userId } }),
       WorkItemState.count({ where: { user_id: userId } }),
     ]);

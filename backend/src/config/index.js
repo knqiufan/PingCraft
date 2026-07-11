@@ -40,7 +40,11 @@ export const appConfig = {
   isDev: (process.env.NODE_ENV || 'development') === 'development',
 
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5177',
+    // 支持多域名：逗号分隔（P3-5.15）
+    origin: (process.env.CORS_ORIGIN || 'http://localhost:5177')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5177',

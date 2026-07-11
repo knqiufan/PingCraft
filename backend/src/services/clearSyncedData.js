@@ -21,6 +21,7 @@ async function deleteSeekVectors(collectionName, compositeIds) {
 
 /**
  * 清除当前用户从 PingCode 同步到本地的数据（关系表 + SeekDB 向量），不含导入记录。
+ * 包括已标记归档（is_archived）的记录，即全量清除后下次同步可重建。
  */
 export async function clearUserSyncedData(userId) {
   const [projRows, wiRows] = await Promise.all([

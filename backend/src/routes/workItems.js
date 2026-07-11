@@ -6,11 +6,14 @@ import {
   createWorkItemsBatch,
   createProject,
   getProjects,
+  updateWorkItem,
 } from '../services/pingcode.js';
 import { ImportRecord, ImportRecordItem, WorkItemType, WorkItemPriority } from '../models/index.js';
 import { success } from '../utils/response.js';
 import { generateProjectIdentifier, toUnixTimestamp, resolveTypeId, resolvePriorityId } from '../utils/workItem.js';
 import { fetchAndStoreMetadataForProject } from '../services/metadata.js';
+import { buildImportPayload, getProjectMembersCached } from '../services/importHelper.js';
+import { invalidateStatsCache } from './stats.js';
 
 const router = express.Router();
 
@@ -115,6 +118,9 @@ router.post('/check-duplicates', requireAuth, async (req, res, next) => {
     const workItemColl = await seekdbClient.getCollection({ name: 'work_items' });
     const userId = req.user.id;
 
+    // 查重相似度阈值（P3-5.14）：低于此分数的匹配视为无重复，可通过 DUPLICATE_SIMILARITY_THRESHOLD 配置
+    const similarityThreshold = parseFloat(process.env.DUPLICATE_SIMILARITY_THRESHOLD || '0.75');
+
     const checkedItems = [];
     for (const item of items) {
       const results = await workItemColl.query({
@@ -131,11 +137,14 @@ router.post('/check-duplicates', requireAuth, async (req, res, next) => {
         const distance = results.distances?.[0]?.[0] || 0;
         const score = Math.max(0, 1 - (distance / 2));
 
-        match = {
-          id: results.ids[0][0],
-          title: results.metadatas[0][0].title,
-          score: score, // 添加相似度分数
-        };
+        // 仅当相似度达到阈值时才视为重复匹配
+        if (score >= similarityThreshold) {
+          match = {
+            id: results.ids[0][0],
+            title: results.metadatas[0][0].title,
+            score: score, // 添加相似度分数
+          };
+        }
       }
 
       checkedItems.push({ ...item, match });
@@ -198,6 +207,8 @@ router.post('/import', requireAuth, ensureFreshToken, async (req, res, next) => 
     }
 
     const results = { success: 0, failed: 0, errors: [], createdProjects: [] };
+    // 项目成员缓存（projectId → members[]），同一次导入内复用
+    const membersCache = new Map();
 
     for (const [projectKey, projectItems] of itemsByProject) {
       let targetProjectId = null;
@@ -267,46 +278,20 @@ router.post('/import', requireAuth, ensureFreshToken, async (req, res, next) => 
       // 查询项目元数据，建立 name -> id 映射表
       const typeNameMap = await buildTypeNameMap(req.user.id, targetProjectId);
       const priorityNameMap = await buildPriorityNameMap(req.user.id, targetProjectId);
+      // 拉取项目成员用于负责人姓名解析（同一项目只拉一次）
+      const members = await getProjectMembersCached(access_token, targetProjectId, domain, membersCache);
 
-      // 构建 PingCode API 所需的工作项数据
+      // 构建 PingCode API 所需的工作项数据（公共逻辑集中在 importHelper.buildImportPayload）
       const pingcodeItems = projectItems.map((i) => {
         const resolvedTypeId = resolveTypeId(i.type_id, typeNameMap);
         const resolvedPriorityId = resolvePriorityId(i.priority_id, i.priority, priorityNameMap);
-
-        const payload = {
-          _local_id: i.id,
-          project_id: targetProjectId,
-          title: i.title,
-          type_id: resolvedTypeId,
-        };
-
-        if (i.description) payload.description = i.description;
-        if (resolvedPriorityId) payload.priority_id = resolvedPriorityId;
-        if (i.state_id) payload.state_id = i.state_id;
-
-        // 负责人：优先使用传入的，否则使用当前用户
-        if (i.assignee_id || pingcode_user_id) {
-          payload.assignee_id = i.assignee_id || pingcode_user_id;
-        }
-
-        // 时间字段：转换为 Unix 时间戳（秒）
-        const startAt = toUnixTimestamp(i.start_at);
-        if (startAt) payload.start_at = startAt;
-
-        const endAt = toUnixTimestamp(i.end_at);
-        if (endAt) payload.end_at = endAt;
-
-        // 预估工时（PingCode 使用 estimated_workload 字段）
-        if (typeof i.estimated_hours === 'number' && i.estimated_hours > 0) {
-          payload.estimated_workload = i.estimated_hours;
-        }
-
-        // 自定义属性
-        if (i.properties && Object.keys(i.properties).length > 0) {
-          payload.properties = i.properties;
-        }
-
-        return payload;
+        return buildImportPayload(i, {
+          targetProjectId,
+          resolvedTypeId,
+          resolvedPriorityId,
+          members,
+          pingcodeUserId: pingcode_user_id,
+        });
       });
 
       // 批量创建工作项
@@ -376,6 +361,9 @@ router.post('/import', requireAuth, ensureFreshToken, async (req, res, next) => 
       }
     }
 
+    // 导入后清除统计缓存（数据已变更，A1）
+    invalidateStatsCache(req.user.id);
+
     res.json(success({ result: results }, '导入完成'));
   } catch (e) {
     next(e);
@@ -427,6 +415,8 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req, res) =>
     const results = { success: 0, failed: 0, errors: [], createdProjects: [] };
     let totalItems = items.length;
     let processedItems = 0;
+    // 项目成员缓存（projectId → members[]），同一次导入内复用
+    const membersCache = new Map();
 
     sendEvent('start', { total: totalItems });
 
@@ -483,24 +473,18 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req, res) =>
 
       const typeNameMap = await buildTypeNameMap(req.user.id, targetProjectId);
       const priorityNameMap = await buildPriorityNameMap(req.user.id, targetProjectId);
+      const members = await getProjectMembersCached(access_token, targetProjectId, domain, membersCache);
 
       const pingcodeItems = projectItems.map((i) => {
         const resolvedTypeId = resolveTypeId(i.type_id, typeNameMap);
         const resolvedPriorityId = resolvePriorityId(i.priority_id, i.priority, priorityNameMap);
-        const payload = {
-          _local_id: i.id, project_id: targetProjectId,
-          title: i.title, type_id: resolvedTypeId,
-        };
-        if (i.description) payload.description = i.description;
-        if (resolvedPriorityId) payload.priority_id = resolvedPriorityId;
-        if (i.state_id) payload.state_id = i.state_id;
-        if (i.assignee_id || pingcode_user_id) payload.assignee_id = i.assignee_id || pingcode_user_id;
-        const startAt = toUnixTimestamp(i.start_at);
-        if (startAt) payload.start_at = startAt;
-        const endAt = toUnixTimestamp(i.end_at);
-        if (endAt) payload.end_at = endAt;
-        if (typeof i.estimated_hours === 'number' && i.estimated_hours > 0) payload.estimated_workload = i.estimated_hours;
-        return payload;
+        return buildImportPayload(i, {
+          targetProjectId,
+          resolvedTypeId,
+          resolvedPriorityId,
+          members,
+          pingcodeUserId: pingcode_user_id,
+        });
       });
 
       const batchResult = await createWorkItemsBatch(
@@ -553,11 +537,58 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req, res) =>
       ).catch(() => {});
     }
 
+    // 导入后清除统计缓存（数据已变更，A1）
+    invalidateStatsCache(req.user.id);
+
     sendEvent('complete', { result: results });
     res.end();
   } catch (e) {
     sendEvent('error', { message: e.message });
     res.end();
+  }
+});
+
+/**
+ * 更新单个 PingCode 工作项（P3-5.2：工作项更新/编辑能力）。
+ * 支持 PATCH 语义：仅传入需要更新的字段。
+ */
+router.patch('/work-items/:id', requireAuth, ensureFreshToken, async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ success: false, error: '缺少工作项 ID' });
+  }
+
+  const allowedFields = [
+    'title', 'description', 'state_id', 'priority_id', 'assignee_id',
+    'start_at', 'end_at', 'estimated_workload', 'parent_id',
+  ];
+  const updateData = {};
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) {
+      updateData[field] = req.body[field];
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ success: false, error: '未提供可更新的字段' });
+  }
+
+  // 时间字段转换为 Unix 时间戳
+  if (updateData.start_at !== undefined) {
+    updateData.start_at = toUnixTimestamp(updateData.start_at);
+  }
+  if (updateData.end_at !== undefined) {
+    updateData.end_at = toUnixTimestamp(updateData.end_at);
+  }
+
+  try {
+    const { access_token, domain } = req.user;
+    const result = await updateWorkItem(access_token, id, updateData, domain);
+    res.json(success(result, '更新成功'));
+  } catch (e) {
+    const status = e.response?.status || 500;
+    const message = e.response?.data?.message || e.message;
+    res.status(status).json({ success: false, error: message });
   }
 });
 

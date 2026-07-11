@@ -242,6 +242,10 @@ async function handleConnect() {
     }
 
     const res = await getLoginUrl()
+    if (!res?.success || !res.url) {
+      ElMessage.error(res?.error || '获取授权 URL 失败')
+      return
+    }
     window.location.href = res.url
   } catch {
     // 拦截器已处理

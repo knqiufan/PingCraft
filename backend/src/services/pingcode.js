@@ -2,6 +2,7 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { appConfig } from '../config/index.js';
 import { withRetry } from '../utils/retry.js';
+import { runWithConcurrency } from '../utils/array.js';
 
 const { pingcode: pcConf } = appConfig;
 
@@ -124,15 +125,24 @@ export async function getProjects(token, domain) {
   );
 }
 
-/** 获取指定项目的工作项列表（自动分页，拉取全部数据） */
+/**
+ * 获取指定项目的工作项列表（自动分页，拉取全部数据）。
+ *
+ * 分页兼容：
+ *   - 优先使用 `page_index`（0 基）+ `page_size`，兼容 PingCode 常见分页方式
+ *   - 同时尝试 `total` / `total_count` 字段判断是否还有更多页
+ *   - 主停止条件：本页返回条数 < page_size
+ *   - 安全限制：最多拉取 100 页，避免分页参数异常导致死循环
+ */
 export async function getWorkItems(token, projectId, domain) {
   const apiBase = getApiBase(domain);
   const pageSize = 100;
+  const MAX_PAGES = 100;
   let allItems = [];
   let pageIndex = 0;
   let hasMore = true;
 
-  while (hasMore) {
+  while (hasMore && pageIndex < MAX_PAGES) {
     const data = await withRetry(
       async () => {
         const res = await axios.get(
@@ -148,11 +158,21 @@ export async function getWorkItems(token, projectId, domain) {
     allItems = allItems.concat(items);
 
     const total = data?.total_count ?? data?.total ?? 0;
-    if (items.length < pageSize || allItems.length >= total) {
+    // 主停止条件：本页不足一页；或已达到 total
+    if (items.length < pageSize || (total > 0 && allItems.length >= total)) {
+      hasMore = false;
+    } else if (items.length === 0) {
+      // 空页保险：避免 total 缺失时无限循环
       hasMore = false;
     } else {
       pageIndex++;
     }
+  }
+
+  if (pageIndex >= MAX_PAGES) {
+    console.warn(
+      `[PingCode] getWorkItems 达到最大分页限制 ${MAX_PAGES}（项目 ${projectId}），可能存在超过 ${MAX_PAGES * pageSize} 条工作项被截断`
+    );
   }
 
   return allItems;
@@ -170,6 +190,24 @@ export async function getWorkItemTypes(token, projectId, domain) {
       return res.data;
     },
     { maxRetries: 2, label: 'PingCode:getWorkItemTypes' }
+  );
+}
+
+/**
+ * 获取项目成员列表（用于将 assignee_name 解析为 assignee_id）
+ * PingCode API: GET /v1/project/projects/{projectId}/members
+ */
+export async function getProjectMembers(token, projectId, domain) {
+  const apiBase = getApiBase(domain);
+  return withRetry(
+    async () => {
+      const res = await axios.get(
+        `${apiBase}/project/projects/${encodeURIComponent(projectId)}/members`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return res.data;
+    },
+    { maxRetries: 2, label: 'PingCode:getProjectMembers' }
   );
 }
 
@@ -245,19 +283,15 @@ export async function createProject(token, projectData, domain) {
 
 /**
  * 根据名称查找项目（精确匹配或模糊匹配）
- * @param {string} token - 访问令牌
- * @param {string} projectName - 项目名称
- * @param {string} domain - 域名
- * @returns {Promise<object|null>} 匹配的项目或 null
  */
 export async function findProjectByName(token, projectName, domain) {
   const projectsRes = await getProjects(token, domain);
   const projectList = Array.isArray(projectsRes) ? projectsRes : (projectsRes?.values || []);
-  
+
   // 精确匹配
   const exactMatch = projectList.find((p) => p.name === projectName);
   if (exactMatch) return exactMatch;
-  
+
   // 模糊匹配（忽略大小写）
   const fuzzyMatch = projectList.find(
     (p) => p.name.toLowerCase() === projectName.toLowerCase()
@@ -266,7 +300,51 @@ export async function findProjectByName(token, projectName, domain) {
 }
 
 /**
- * 批量创建工作项（逐条调用 + 重试）
+ * 更新单个工作项（P3-5.2）
+ * @param {string} token - 访问令牌
+ * @param {string} workItemId - 工作项 ID
+ * @param {object} updateData - 需要更新的字段（如 title/description/state_id/priority_id/assignee_id 等）
+ * @param {string} domain - 域名
+ * @returns {Promise<object>} 更新后的工作项
+ */
+export async function updateWorkItem(token, workItemId, updateData, domain) {
+  const apiBase = getApiBase(domain);
+  return withRetry(
+    async () => {
+      const res = await axios.patch(
+        `${apiBase}/project/work_items/${encodeURIComponent(workItemId)}`,
+        updateData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return res.data;
+    },
+    { maxRetries: 2, label: 'PingCode:updateWorkItem' }
+  );
+}
+
+/**
+ * 获取单个工作项详情（P3-5.2）
+ */
+export async function getWorkItemDetail(token, workItemId, domain) {
+  const apiBase = getApiBase(domain);
+  return withRetry(
+    async () => {
+      const res = await axios.get(
+        `${apiBase}/project/work_items/${encodeURIComponent(workItemId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return res.data;
+    },
+    { maxRetries: 2, label: 'PingCode:getWorkItemDetail' }
+  );
+}
+
+/**
+ * 批量创建工作项（有限并发调用 + 单条重试）
+ *
+ * 并发度由 PINGCODE_IMPORT_CONCURRENCY 控制（默认 3，可在 API 限流范围内提速）。
+ * 进度回调仍按完成顺序触发，current 为累计已完成数量。
+ *
  * @param {string} token - PingCode access token
  * @param {Array} items - 工作项数据数组，每项需包含 _local_id 用于关联本地记录
  * @param {string} domain - PingCode 域名
@@ -275,19 +353,21 @@ export async function findProjectByName(token, projectName, domain) {
  */
 export async function createWorkItemsBatch(token, items, domain, onProgress) {
   const apiBase = getApiBase(domain);
-  const results = { 
-    success: 0, 
-    failed: 0, 
+  const concurrency = Math.max(1, parseInt(process.env.PINGCODE_IMPORT_CONCURRENCY || '3', 10));
+  const results = {
+    success: 0,
+    failed: 0,
     errors: [],
     created: [],
   };
 
   const total = items.length;
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  let completed = 0;
+
+  const tasks = items.map((item) => async () => {
     const localId = item._local_id;
     const { _local_id, ...pingcodeItem } = item;
-    
+
     try {
       let createdItem = null;
       await withRetry(
@@ -307,21 +387,23 @@ export async function createWorkItemsBatch(token, items, domain, onProgress) {
         title: pingcodeItem.title,
       });
       if (onProgress) {
-        onProgress(i + 1, total, { title: pingcodeItem.title, status: 'success' });
+        onProgress(++completed, total, { title: pingcodeItem.title, status: 'success' });
       }
     } catch (e) {
       results.failed++;
       const errorDetail = e.response?.data?.message || e.response?.data?.error || e.message;
-      results.errors.push({ 
+      results.errors.push({
         local_id: localId,
-        item: pingcodeItem.title, 
+        item: pingcodeItem.title,
         error: errorDetail,
       });
       if (onProgress) {
-        onProgress(i + 1, total, { title: pingcodeItem.title, status: 'failed', error: errorDetail });
+        onProgress(++completed, total, { title: pingcodeItem.title, status: 'failed', error: errorDetail });
       }
     }
-  }
+  });
+
+  await runWithConcurrency(tasks, concurrency);
 
   return results;
 }

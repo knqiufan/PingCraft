@@ -5,8 +5,46 @@ import { getWorkItems } from '../services/pingcode.js';
 import { WorkItemType, WorkItemState, WorkItemPriority, SyncedProject } from '../models/index.js';
 import { success } from '../utils/response.js';
 import { analyzeProjectStats } from '../services/statsAnalyzer.js';
+import { workloadToHours, extractWorkItemIds } from '../utils/workItem.js';
 
 const router = express.Router();
+
+/**
+ * 统计数据内存缓存（P3-5.4）。
+ * TTL 默认 5 分钟，避免大项目每次请求都拉全量工作项。
+ * key: `${userId}:${projectId}`，value: { data, expireAt }
+ */
+const STATS_CACHE_TTL_MS = parseInt(process.env.STATS_CACHE_TTL_MS || '300000', 10); // 5 分钟
+const statsCache = new Map();
+
+function getCachedStats(userId, projectId) {
+  const key = `${userId}:${projectId}`;
+  const entry = statsCache.get(key);
+  if (entry && entry.expireAt > Date.now()) {
+    return entry.data;
+  }
+  statsCache.delete(key);
+  return null;
+}
+
+function setCachedStats(userId, projectId, data) {
+  statsCache.set(`${userId}:${projectId}`, {
+    data,
+    expireAt: Date.now() + STATS_CACHE_TTL_MS,
+  });
+}
+
+/** 使指定项目的统计缓存失效（同步/导入后调用） */
+export function invalidateStatsCache(userId, projectId) {
+  if (projectId) {
+    statsCache.delete(`${userId}:${projectId}`);
+  } else {
+    // 无 projectId 时清除该用户所有项目的缓存
+    for (const key of statsCache.keys()) {
+      if (key.startsWith(`${userId}:`)) statsCache.delete(key);
+    }
+  }
+}
 
 /**
  * 从本地元数据表构建 ID -> 名称 的映射
@@ -41,14 +79,16 @@ function aggregateWorkItems(items, nameMaps) {
   for (const item of items) {
     const assigneeName = item.assignees?.[0]?.name
       || item.assignee?.name
+      || item.assignee?.id
       || item.assignee_id
       || '未分配';
-    const typeName = typeMap.get(item.work_item_type_id) || typeMap.get(item.type_id) || '未知类型';
-    const priorityName = priorityMap.get(item.priority_id) || '未设置';
-    const stateInfo = stateMap.get(item.state_id);
+    const { typeId, priorityId, stateId } = extractWorkItemIds(item);
+    const typeName = typeMap.get(typeId) || '未知类型';
+    const priorityName = (priorityId && priorityMap.get(priorityId)) || '未设置';
+    const stateInfo = stateId ? stateMap.get(stateId) : null;
     const stateName = stateInfo?.name || '未知状态';
     const stateType = stateInfo?.type || 'unknown';
-    const hours = item.estimated_workload || 0;
+    const hours = workloadToHours(item.estimated_workload);
 
     // 人员分布
     assigneeDistribution.set(assigneeName, (assigneeDistribution.get(assigneeName) || 0) + 1);
@@ -110,12 +150,18 @@ function buildStateDistribution(stateMap) {
 }
 
 /**
- * 获取项目统计数据的核心逻辑（供路由和 AI 分析复用）
+ * 获取项目统计数据的核心逻辑（供路由和 AI 分析复用）。
+ * 使用内存缓存（TTL 5 分钟）避免重复拉取全量工作项（P3-5.4）。
  */
 export async function getProjectStatsData(user, projectId) {
+  const userId = user.id;
+
+  // 命中缓存直接返回
+  const cached = getCachedStats(userId, projectId);
+  if (cached) return cached;
+
   const accessToken = user.access_token;
   const domain = user.domain;
-  const userId = user.id;
 
   const project = await SyncedProject.findOne({
     where: { id: projectId, user_id: userId },
@@ -131,12 +177,15 @@ export async function getProjectStatsData(user, projectId) {
 
   const stats = aggregateWorkItems(items, nameMaps);
 
-  return {
+  const data = {
     project: { id: project.id, name: project.name },
     totalItems: items.length,
-    totalEstimatedHours: items.reduce((sum, i) => sum + (i.estimated_workload || 0), 0),
+    totalEstimatedHours: items.reduce((sum, i) => sum + workloadToHours(i.estimated_workload), 0),
     ...stats,
   };
+
+  setCachedStats(userId, projectId, data);
+  return data;
 }
 
 /** GET /api/stats/:projectId - 获取项目统计数据 */

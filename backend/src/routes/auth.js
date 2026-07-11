@@ -1,6 +1,5 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { Op } from 'sequelize';
 import {
   getAuthUrl,
   getToken,
@@ -8,7 +7,6 @@ import {
   fetchUserInfo,
   getEnterpriseToken,
   computeExpiresAtFromTokenResponse,
-  PINGCODE_GRANT_AUTHORIZATION_CODE,
   PINGCODE_GRANT_CLIENT_CREDENTIALS,
 } from '../services/pingcode.js';
 import { User } from '../models/User.js';
@@ -31,48 +29,41 @@ function parseCookies(cookieHeader) {
   }, {});
 }
 
-/** 通过 state 参数解析用户 */
-async function getUserFromState(state) {
-  if (!state) return null;
+/** 通过 state 参数解析用户（state JWT 必须有效且与 cookie 中的 oauth_user_id 一致） */
+async function getUserFromState(state, expectedUserId) {
+  if (!state || !expectedUserId) return null;
   try {
     const decoded = jwt.verify(state, appConfig.jwt.secret);
+    // state 中的 userId 必须与 cookie 中的 oauth_user_id 一致（防 CSRF / 篡改攻击）
+    if (decoded.userId !== expectedUserId) return null;
     return await User.findByPk(decoded.userId);
   } catch {
     return null;
   }
 }
 
-/** 通过 Cookie 兜底获取用户 */
-async function getUserFromCookie(req) {
+/** 通过 Cookie 获取用户（辅助 state 解析，不做独立兜底） */
+async function getUserFromOAuthCookies(req) {
   const cookies = parseCookies(req.headers.cookie);
   const userId = cookies.oauth_user_id;
+  const state = cookies.oauth_state || req.query.state;
   if (!userId) return null;
-  return await User.findByPk(userId);
-}
-
-/** 查找已配置 PingCode 且为「用户授权」模式的用户（兜底；含 grant_type 未迁移的旧行） */
-async function findConfiguredUserForOAuth() {
-  return await User.findOne({
-    where: {
-      pingcode_client_id: { [Op.ne]: null },
-      [Op.or]: [
-        { pingcode_grant_type: PINGCODE_GRANT_AUTHORIZATION_CODE },
-        { pingcode_grant_type: { [Op.is]: null } },
-      ],
-    },
-  });
+  return await getUserFromState(state, userId);
 }
 
 /* ---- 路由 ---- */
 
-/** 为当前用户生成授权 URL */
+/**
+ * 为当前登录用户生成 PingCode 授权 URL（需要登录态）。
+ * 移除了原先的公开 /auth/login 入口——任意访客不应能以他人身份发起 OAuth。
+ */
 router.get('/login-url', requireAuth, (req, res) => {
   const user = req.user;
   if (user.pingcode_grant_type === PINGCODE_GRANT_CLIENT_CREDENTIALS) {
-    return res.status(400).json({ error: '当前为企业授权模式，请使用「连接 PingCode」获取企业令牌，勿使用浏览器 OAuth。' });
+    return res.status(400).json({ success: false, error: '当前为企业授权模式，请使用「连接 PingCode」获取企业令牌，勿使用浏览器 OAuth。' });
   }
   if (!user.pingcode_client_id) {
-    return res.status(400).json({ error: '尚未配置 PingCode Client ID' });
+    return res.status(400).json({ success: false, error: '尚未配置 PingCode Client ID' });
   }
 
   const state = jwt.sign({ userId: user.id }, appConfig.jwt.secret, { expiresIn: '5m' });
@@ -80,39 +71,29 @@ router.get('/login-url', requireAuth, (req, res) => {
   res.cookie('oauth_user_id', user.id, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
 
   const url = getAuthUrl(user.pingcode_client_id, state);
-  res.json({ url });
+  res.json({ success: true, url });
 });
 
-/** 公开入口：直接跳转 PingCode 授权 */
-router.get('/login', async (req, res, next) => {
-  try {
-    const user = await findConfiguredUserForOAuth();
-    if (!user) {
-      return res.status(400).send('未找到已配置「用户授权」模式的账号，请先注册并配置 PingCode 凭证。');
-    }
-
-    const state = jwt.sign({ userId: user.id, isLogin: true }, appConfig.jwt.secret, { expiresIn: '5m' });
-    res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
-    res.cookie('oauth_user_id', user.id, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
-
-    const url = getAuthUrl(user.pingcode_client_id, state);
-    res.redirect(url);
-  } catch (e) {
-    next(e);
-  }
-});
-
-/** OAuth 回调 */
+/**
+ * OAuth 回调：严格依赖 state JWT + cookie 定位用户，不再使用「取第一个配置了 client_id 的用户」兜底，
+ * 避免多用户部署下越权绑定。
+ */
 router.get('/callback', async (req, res, next) => {
   const { code, state } = req.query;
   if (!code) return res.status(400).send('缺少授权码');
 
   try {
-    // 依次尝试获取用户
-    let user = await getUserFromState(state);
-    if (!user) user = await getUserFromCookie(req);
-    if (!user) user = await findConfiguredUserForOAuth();
-    if (!user) return res.status(400).send('无法确定关联用户');
+    // 严格通过 state JWT + cookie 定位用户，不做公开兜底
+    let user = null;
+    if (state) {
+      // 优先用 query 中的 state（PingCode 回传），但需与 cookie 中的 oauth_user_id 匹配
+      const cookies = parseCookies(req.headers.cookie);
+      user = await getUserFromState(state, cookies.oauth_user_id);
+    }
+    if (!user) user = await getUserFromOAuthCookies(req);
+    if (!user) {
+      return res.status(400).send('无法确定关联用户，请先登录本系统并重新发起 PingCode 授权。');
+    }
 
     if (user.pingcode_grant_type === PINGCODE_GRANT_CLIENT_CREDENTIALS) {
       return res.status(400).send('当前账号为企业授权模式，不应使用 OAuth 回调；请在本应用内获取企业令牌。');
@@ -158,17 +139,18 @@ router.post('/pingcode/enterprise-token', requireAuth, async (req, res, next) =>
     const user = req.user;
     if (user.pingcode_grant_type !== PINGCODE_GRANT_CLIENT_CREDENTIALS) {
       return res.status(400).json({
+        success: false,
         error: '当前不是企业授权模式，请在配置中选择「企业授权」并保存后再试。',
       });
     }
     if (!user.pingcode_client_id || !user.pingcode_client_secret) {
-      return res.status(400).json({ error: '请先配置 Client ID 与 Client Secret' });
+      return res.status(400).json({ success: false, error: '请先配置 Client ID 与 Client Secret' });
     }
 
     const tokenData = await getEnterpriseToken(user.pingcode_client_id, user.pingcode_client_secret);
     const { access_token: accessToken } = tokenData;
     if (!accessToken) {
-      return res.status(502).json({ error: 'PingCode 未返回 access_token' });
+      return res.status(502).json({ success: false, error: 'PingCode 未返回 access_token' });
     }
 
     const domain = user.domain || 'open.pingcode.com';

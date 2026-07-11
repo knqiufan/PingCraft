@@ -1,5 +1,9 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../services/db.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
+
+/** 需要透明加解密的敏感字段 */
+const SENSITIVE_FIELDS = ['api_key'];
 
 export const ModelConfig = sequelize.define('ModelConfig', {
   id: {
@@ -61,4 +65,32 @@ export const ModelConfig = sequelize.define('ModelConfig', {
       fields: ['user_id', 'name'],
     },
   ],
+  hooks: {
+    beforeSave: (instance) => {
+      // 仅加密本次被修改（或新创建）的敏感字段
+      for (const field of SENSITIVE_FIELDS) {
+        if (instance.changed(field)) {
+          const val = instance.getDataValue(field);
+          if (val !== null && val !== undefined && val !== '') {
+            instance.setDataValue(field, encrypt(val));
+          }
+        }
+      }
+    },
+    afterSave: (instance) => {
+      for (const field of SENSITIVE_FIELDS) {
+        const val = instance.getDataValue(field);
+        instance.setDataValue(field, decrypt(val));
+      }
+    },
+    afterFind: (instances) => {
+      const list = Array.isArray(instances) ? instances : (instances ? [instances] : []);
+      for (const instance of list) {
+        for (const field of SENSITIVE_FIELDS) {
+          const val = instance.getDataValue(field);
+          instance.setDataValue(field, decrypt(val));
+        }
+      }
+    },
+  },
 });

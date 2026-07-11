@@ -112,3 +112,26 @@ export function restoreFromRecord(recordId: string) {
     target_project_name?: string
   }>>(`/api/records/${recordId}/restore`)
 }
+
+/**
+ * 导出导入记录为 CSV（P3-5.5）。
+ * 直接下载文件，不走 axios 响应拦截器。
+ */
+export function exportRecordAsCsv(recordId: string, fileName?: string) {
+  const token = localStorage.getItem('local_token')
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  return fetch(`${baseUrl}/api/records/${recordId}/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error('导出失败')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${fileName || 'export'}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  })
+}

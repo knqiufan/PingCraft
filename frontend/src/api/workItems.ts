@@ -65,7 +65,15 @@ export function importItemsStream(
     body: JSON.stringify({ items, projectId, record_id: recordId }),
   }).then(async (response) => {
     if (!response.ok || !response.body) {
-      callbacks.onError?.({ message: '连接失败' })
+      // 解析错误响应体，提取后端返回的明确错误信息（如 PingCode 授权过期）
+      let errorMsg = '连接失败'
+      try {
+        const errData = await response.json()
+        errorMsg = errData?.error || errorMsg
+      } catch {
+        // 响应非 JSON，使用默认消息
+      }
+      callbacks.onError?.({ message: errorMsg })
       return
     }
 

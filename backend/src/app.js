@@ -4,8 +4,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { appConfig } from './config/index.js';
+import { sequelize, seekdbClient } from './services/db.js';
+import { requireAuth } from './middleware/auth.js';
+import { requireAdmin } from './middleware/permission.js';
 import { requestLogger } from './middleware/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { success } from './utils/response.js';
 import authRoutes from './routes/auth.js';
 import localAuthRoutes from './routes/localAuth.js';
 import configRoutes from './routes/config.js';
@@ -23,12 +27,70 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 /* ---- 全局中间件 ---- */
+const allowedOrigins = Array.isArray(appConfig.cors.origin)
+  ? appConfig.cors.origin
+  : [appConfig.cors.origin];
+
 app.use(cors({
-  origin: appConfig.cors.origin,
+  origin: (origin, callback) => {
+    // 允许同源请求（无 Origin header，如服务器端请求或同源浏览器请求）
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false); // 不允许的源：不设置 CORS 头，浏览器会拦截
+    }
+  },
   credentials: true,
+  // 暴露滑动续期自定义响应头，供前端读取（P2-4.3）
+  exposedHeaders: ['X-Refreshed-Token'],
 }));
-app.use(express.json());
+// 显式限制请求体大小（默认 100kb 对大批量导入场景不足；5mb 兼顾大文档与 DoS 防护）
+app.use(express.json({ limit: '5mb' }));
 app.use(requestLogger);
+
+/* ---- 审计日志查询（仅 admin，P3-5.9） ---- */
+app.get('/api/audit-logs', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const { getAuditLogs } = await import('./services/auditLog.js');
+    const logs = getAuditLogs({
+      userId: req.query.userId || undefined,
+      action: req.query.action || undefined,
+      limit: parseInt(req.query.limit || '100', 10),
+    });
+    res.json(success(logs));
+  } catch (e) {
+    next(e);
+  }
+});
+
+/* ---- 健康检查（无需认证，供容器编排探针使用） ---- */
+app.get('/health', async (_req, res) => {
+  const checks = {};
+  let allOk = true;
+
+  // 关系数据库连通性
+  try {
+    await sequelize.authenticate();
+    checks.database = 'ok';
+  } catch (e) {
+    checks.database = 'error';
+    allOk = false;
+  }
+
+  // 向量数据库连通性（SeekDB 复用同一 MySQL 协议连接，authenticate 通过即可认为向量库可用）
+  try {
+    const coll = await seekdbClient.getCollection({ name: 'projects' }).catch(() => null);
+    checks.vectorDB = coll ? 'ok' : 'degraded';
+  } catch {
+    checks.vectorDB = 'degraded';
+  }
+
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'ok' : 'error',
+    checks,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 /* ---- 路由 ---- */
 app.use('/auth', authRoutes);

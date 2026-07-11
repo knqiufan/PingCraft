@@ -1,7 +1,9 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/permission.js';
 import { User, Role, UserRole } from '../models/index.js';
 import { success } from '../utils/response.js';
+import { logAudit } from '../services/auditLog.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 
@@ -56,7 +58,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     }
 
     const user = await User.findByPk(userId, {
-      attributes: { exclude: ['password_hash', 'access_token', 'refresh_token'] },
+      attributes: { exclude: ['password_hash', 'access_token', 'refresh_token', 'pingcode_client_secret'] },
     });
 
     if (!user) {
@@ -81,8 +83,11 @@ router.get('/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-/** 创建用户（注册） */
-router.post('/', async (req, res, next) => {
+/**
+ * 创建用户（仅 admin 可用，用于管理端创建账号）。
+ * 普通注册统一走 POST /auth/local/register（含限流）。
+ */
+router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const { username, password, email } = req.body;
 
@@ -113,7 +118,7 @@ router.post('/', async (req, res, next) => {
       });
     }
 
-    res.json(success({ id: user.id, username: user.username }, '注册成功'));
+    res.json(success({ id: user.id, username: user.username }, '创建成功'));
   } catch (e) {
     next(e);
   }
@@ -183,6 +188,14 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
     await user.destroy();
     // 删除用户时，同时删除角色关联
     await UserRole.destroy({ where: { user_id: userId } });
+
+    logAudit({
+      userId: req.user.id,
+      username: req.user.username,
+      action: 'DELETE_USER',
+      resource: `user:${userId}`,
+      detail: { deletedUsername: user.username },
+    });
 
     res.json(success(null, '删除成功'));
   } catch (e) {

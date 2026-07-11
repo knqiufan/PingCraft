@@ -22,5 +22,9 @@ ENV PORT=3000
 
 EXPOSE 3000
 
+# 容器健康检查（P2-4.15）：每 30s 探测 /health，连续失败标记不健康
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
+
 # 从项目根 /app 启动后端（后端通过 __dirname 解析 backend/.env 路径）
 CMD ["node", "backend/src/index.js"]

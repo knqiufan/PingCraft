@@ -45,6 +45,9 @@ async function refreshEnterpriseToken(user) {
 /**
  * 中间件：在需要 PingCode API 的路由前检查并自动刷新过期 token
  * 仅当 req.user 存在且 token 即将/已经过期时触发刷新
+ *
+ * 刷新失败时返回明确的 401（带 code: 'PINGCODE_AUTH_EXPIRED'），引导前端在保持本地登录态的前提下
+ * 提示用户重新连接 PingCode，而非静默放行导致下游报错链路长且不友好。
  */
 export async function ensureFreshToken(req, res, next) {
   try {
@@ -64,10 +67,23 @@ export async function ensureFreshToken(req, res, next) {
 
     if (mode === PINGCODE_GRANT_CLIENT_CREDENTIALS) {
       if (!user.pingcode_client_id || !user.pingcode_client_secret) {
-        return next();
+        return res.status(401).json({
+          success: false,
+          code: 'PINGCODE_AUTH_EXPIRED',
+          error: 'PingCode 企业凭证不完整，请重新配置 Client ID 与 Secret',
+        });
       }
       console.log(`[TokenRefresh] 企业令牌即将过期，正在为用户 ${user.id} 重新获取...`);
-      await refreshEnterpriseToken(user);
+      try {
+        await refreshEnterpriseToken(user);
+      } catch (refreshErr) {
+        console.error('[TokenRefresh] 企业令牌获取失败:', refreshErr.message);
+        return res.status(401).json({
+          success: false,
+          code: 'PINGCODE_AUTH_EXPIRED',
+          error: 'PingCode 企业授权已过期或凭证无效，请重新配置',
+        });
+      }
       await user.reload();
       req.user = user;
       console.log(`[TokenRefresh] 用户 ${user.id} 企业令牌已更新`);
@@ -75,17 +91,34 @@ export async function ensureFreshToken(req, res, next) {
     }
 
     if (!user.refresh_token || !user.pingcode_client_id || !user.pingcode_client_secret) {
-      return next();
+      return res.status(401).json({
+        success: false,
+        code: 'PINGCODE_AUTH_EXPIRED',
+        error: 'PingCode 授权已过期且缺少刷新凭证，请重新连接 PingCode',
+      });
     }
 
     console.log(`[TokenRefresh] Token 即将过期，正在为用户 ${user.id} 刷新...`);
-    await refreshUserOAuthToken(user);
+    try {
+      await refreshUserOAuthToken(user);
+    } catch (refreshErr) {
+      console.error('[TokenRefresh] Token 刷新失败:', refreshErr.message);
+      return res.status(401).json({
+        success: false,
+        code: 'PINGCODE_AUTH_EXPIRED',
+        error: 'PingCode 授权已过期，请重新连接 PingCode',
+      });
+    }
     await user.reload();
     req.user = user;
     console.log(`[TokenRefresh] 用户 ${user.id} Token 刷新成功`);
     next();
   } catch (e) {
-    console.error('[TokenRefresh] Token 刷新失败:', e.message);
-    next();
+    console.error('[TokenRefresh] 中间件异常:', e.message);
+    return res.status(401).json({
+      success: false,
+      code: 'PINGCODE_AUTH_EXPIRED',
+      error: 'PingCode 授权状态异常，请重新连接',
+    });
   }
 }

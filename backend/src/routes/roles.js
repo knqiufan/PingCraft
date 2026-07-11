@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'node:crypto';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/permission.js';
 import { Role, Permission, RolePermission, UserRole, User } from '../models/index.js';
@@ -32,7 +33,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
     }
 
     const role = await Role.create({
-      id: require('crypto').randomUUID(),
+      id: crypto.randomUUID(),
       name,
       display_name,
       description,
@@ -144,7 +145,7 @@ router.post('/permissions', requireAuth, requireAdmin, async (req, res, next) =>
     }
 
     const permission = await Permission.create({
-      id: require('crypto').randomUUID(),
+      id: crypto.randomUUID(),
       name,
       display_name,
       description,

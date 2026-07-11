@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs/promises';
+import crypto from 'node:crypto';
 import { requireAuth } from '../middleware/auth.js';
 import { ImportRecord, ImportRecordItem } from '../models/index.js';
 import { success } from '../utils/response.js';
@@ -67,7 +68,7 @@ router.post('/', requireAuth, async (req, res, next) => {
     } = req.body;
 
     const record = await ImportRecord.create({
-      id: require('crypto').randomUUID(),
+      id: crypto.randomUUID(),
       user_id: userId,
       file_name,
       requirements_count,
@@ -243,10 +244,15 @@ router.get('/:id/restore', requireAuth, async (req, res, next) => {
       project_name: item.project_name || record.target_project_name || '',
       title: item.title,
       description: item.description || '',
-      priority: 'Medium',
-      estimated_hours: 8,
-      start_at: new Date().toISOString(),
+      // 从明细还原真实值，不再硬编码 Medium / 8h / now()
+      priority: item.priority || 'Medium',
+      estimated_hours: typeof item.estimated_hours === 'number' ? item.estimated_hours : 8,
+      start_at: item.start_at || new Date().toISOString(),
+      end_at: item.end_at || null,
       type_id: item.type_id || 'story',
+      assignee_name: item.assignee_name || null,
+      assignee_id: item.assignee_id || null,
+      solution_suggestion: item.solution_suggestion || '',
       status: item.status === 'success' ? 'imported' : 'new',
     }));
 
@@ -257,6 +263,74 @@ router.get('/:id/restore', requireAuth, async (req, res, next) => {
       target_project_id: record.target_project_id,
       target_project_name: record.target_project_name,
     }, '恢复成功'));
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * 导出导入记录的工作项为 CSV（P3-5.5）。
+ * 包含标题、描述、优先级、工时、负责人、状态等字段，便于协作和存档。
+ */
+router.get('/:id/export', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const record = await ImportRecord.findOne({
+      where: { id: req.params.id, user_id: userId },
+    });
+
+    if (!record) {
+      return res.status(404).json({ success: false, error: '记录不存在' });
+    }
+
+    const items = await ImportRecordItem.findAll({
+      where: { record_id: record.id },
+      order: [['createdAt', 'ASC']],
+    });
+
+    const headers = [
+      '项目名称', '标题', '类型', '优先级', '预估工时(小时)',
+      '负责人', '开始时间', '截止时间', '导入状态', 'PingCode标识',
+      '描述', '解决方案建议',
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '';
+      let str = String(val);
+      // CSV 注入防护：以 = + - @ 开头的值在 Excel 中会被解释为公式，
+      // 前缀单引号使其被视为纯文本（A2）
+      if (/^[=+\-@]/.test(str)) {
+        str = `'${str}`;
+      }
+      // 包含逗号、换行、引号的值需要用双引号包裹并转义内部引号
+      if (/[",\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = items.map((item) => [
+      item.project_name || '',
+      item.title || '',
+      item.type_id || '',
+      item.priority || item.priority_id || '',
+      item.estimated_hours ?? '',
+      item.assignee_name || '',
+      item.start_at || '',
+      item.end_at || '',
+      item.status || '',
+      item.pingcode_identifier || '',
+      item.description || '',
+      item.solution_suggestion || '',
+    ].map(escapeCsv).join(','));
+
+    // BOM 头确保 Excel 正确识别 UTF-8 编码
+    const csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
+    const safeFileName = (record.file_name || 'export').replace(/[^\w一-龥.-]/g, '_');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(safeFileName)}.csv"`);
+    res.send(csv);
   } catch (e) {
     next(e);
   }

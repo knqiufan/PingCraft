@@ -41,6 +41,7 @@ vi.mock('../../utils/workItem.js', () => ({
   toUnixTimestamp: vi.fn((v) => v ? 1234567890 : null),
   resolveTypeId: vi.fn((id) => id || 'story'),
   resolvePriorityId: vi.fn(() => null),
+  hoursToWorkload: vi.fn((h) => (typeof h === 'number' && h > 0 ? h : null)),
 }));
 
 // Capture route handlers
@@ -54,7 +55,12 @@ vi.mock('express', () => {
     post: vi.fn((path, ...args) => {
       routeHandlers[`POST ${path}`] = args;
     }),
-    put: vi.fn(),
+    put: vi.fn((path, ...args) => {
+      routeHandlers[`PUT ${path}`] = args;
+    }),
+    patch: vi.fn((path, ...args) => {
+      routeHandlers[`PATCH ${path}`] = args;
+    }),
     delete: vi.fn(),
     use: vi.fn(),
   };
@@ -167,6 +173,24 @@ describe('workItems routes', () => {
     it('should return 400 when no items', async () => {
       req.body = { items: [] };
       const handler = getHandler('POST', '/import');
+      await handler(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('PATCH /work-items/:id', () => {
+    it('should return 400 when no updatable fields provided', async () => {
+      const handler = getHandler('PATCH', '/work-items/:id');
+      req.params = { id: 'wi-1' };
+      req.body = {};
+      await handler(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('should return 400 when missing work item id', async () => {
+      const handler = getHandler('PATCH', '/work-items/:id');
+      req.params = {};
+      req.body = { title: 'Updated' };
       await handler(req, res, next);
       expect(res.status).toHaveBeenCalledWith(400);
     });

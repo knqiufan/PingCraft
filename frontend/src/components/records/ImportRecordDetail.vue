@@ -31,6 +31,15 @@
           <el-option label="跳过" value="skipped" />
         </el-select>
         <el-button text type="primary" @click="refresh">刷新</el-button>
+        <el-button
+          text
+          type="success"
+          :icon="Download"
+          :loading="exporting"
+          @click="handleExport"
+        >
+          导出 CSV
+        </el-button>
       </div>
 
       <!-- 明细列表 -->
@@ -79,8 +88,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { Download } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import {
   getImportRecordItems,
+  exportRecordAsCsv,
   type ImportRecord,
   type ImportRecordItem,
 } from '@/api/records'
@@ -144,6 +156,20 @@ async function loadItems() {
 
 function refresh() {
   loadItems()
+}
+
+const exporting = ref(false)
+async function handleExport() {
+  if (!props.record) return
+  exporting.value = true
+  try {
+    await exportRecordAsCsv(props.record.id, props.record.file_name)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function handleFilterChange() {

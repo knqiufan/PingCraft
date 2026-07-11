@@ -84,7 +84,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="API 密钥" prop="api_key">
-          <el-input v-model="formData.api_key" type="password" show-password placeholder="请输入 API 密钥" />
+          <el-input
+            v-model="formData.api_key"
+            type="password"
+            show-password
+            :placeholder="isEdit ? '留空则不修改（出于安全，密钥不回显）' : '请输入 API 密钥'"
+          />
         </el-form-item>
         <el-form-item label="API 地址" prop="base_url">
           <el-input v-model="formData.base_url" placeholder="留空使用默认地址" />
@@ -106,7 +111,7 @@
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button
           :loading="testingInDialog"
-          :disabled="!formData.api_key || !formData.model"
+          :disabled="(!isEdit && !formData.api_key) || !formData.model"
           @click="testConnectionInDialog"
         >
           测试连接
@@ -157,7 +162,18 @@ const formData = reactive<ModelConfigRequest>({
 const rules = {
   name: [{ required: true, message: '请输入配置名称', trigger: 'blur' }],
   provider: [{ required: true, message: '请选择提供商', trigger: 'change' }],
-  api_key: [{ required: true, message: '请输入 API 密钥', trigger: 'blur' }],
+  api_key: [
+    {
+      validator: (_rule: unknown, value: string, callback: (e?: Error) => void) => {
+        // 编辑模式下允许留空（不修改密钥）；新建模式必须填写
+        if (!isEdit.value && !value) {
+          return callback(new Error('请输入 API 密钥'))
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
   model: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
 }
 
@@ -193,13 +209,16 @@ function editConfig(config: ModelConfig) {
   Object.assign(formData, {
     name: config.name,
     provider: config.provider,
-    api_key: config.api_key,
+    // 编辑时不清回显密钥（后端仅返回脱敏值），留空表示不修改
+    api_key: '',
     base_url: config.base_url || '',
     model: config.model,
     temperature: config.temperature ?? 0,
     max_tokens: config.max_tokens ?? undefined,
     is_default: config.is_default,
   })
+  // 清除可能残留的校验错误
+  formRef.value?.clearValidate()
   dialogVisible.value = true
 }
 
@@ -236,6 +255,21 @@ async function testConnection(config: ModelConfig) {
 }
 
 async function testConnectionInDialog() {
+  // 编辑模式且未输入新密钥时，使用已保存的配置测试（后端持有真实密钥）
+  if (isEdit.value && !formData.api_key) {
+    if (!currentEditId.value) return
+    testingInDialog.value = true
+    try {
+      await testModelConfig(currentEditId.value)
+      ElMessage.success('连接成功')
+    } catch {
+      // Error handled by interceptor
+    } finally {
+      testingInDialog.value = false
+    }
+    return
+  }
+
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 

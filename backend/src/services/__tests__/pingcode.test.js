@@ -137,6 +137,41 @@ describe('PingCode Service', () => {
       expect(result).toHaveLength(150);
       expect(axios.get).toHaveBeenCalledTimes(2);
     });
+
+    it('should stop when a page returns fewer items than pageSize (no total field)', async () => {
+      axios.get
+        .mockResolvedValueOnce({
+          data: { values: Array(100).fill({ id: 'i', title: 't' }) },
+        })
+        .mockResolvedValueOnce({
+          data: { values: Array(30).fill({ id: 'i2', title: 't2' }) },
+        });
+
+      const result = await getWorkItems('token', 'proj', 'domain');
+      expect(result).toHaveLength(130);
+      expect(axios.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('should stop on empty page to avoid infinite loop', async () => {
+      axios.get
+        .mockResolvedValueOnce({ data: { values: Array(100).fill({ id: 'i', title: 't' }) } })
+        .mockResolvedValueOnce({ data: { values: [] } });
+
+      const result = await getWorkItems('token', 'proj', 'domain');
+      expect(result).toHaveLength(100);
+    });
+
+    it('should enforce MAX_PAGES safety guard', async () => {
+      // 每页返回满 100 条但 total 缺失 —— 无 MAX_PAGES 会死循环
+      axios.get.mockResolvedValue({
+        data: { values: Array(100).fill({ id: 'i', title: 't' }) },
+      });
+
+      const result = await getWorkItems('token', 'proj', 'domain');
+      // MAX_PAGES = 100 → 最多 10000 条
+      expect(result).toHaveLength(10000);
+      expect(axios.get).toHaveBeenCalledTimes(100);
+    });
   });
 
   describe('findProjectByName()', () => {

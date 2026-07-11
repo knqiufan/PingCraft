@@ -18,12 +18,19 @@
               :value="p.id"
             />
           </el-select>
+          <el-input
+            v-model="searchKeyword"
+            clearable
+            placeholder="搜索标题/编号"
+            size="small"
+            class="search-input"
+          />
         </div>
         <el-button text type="primary" size="small" @click="refresh">刷新</el-button>
       </div>
     </template>
     <el-table
-      :data="displayList"
+      :data="pagedList"
       stripe
       style="width: 100%"
       max-height="400"
@@ -44,8 +51,18 @@
         </template>
       </el-table-column>
     </el-table>
-    <div v-if="!displayList.length" class="empty-tip">
-      {{ filterProjectId ? '该项目暂无工作项' : '暂无同步数据，请先点击「同步数据」' }}
+    <div v-if="!filteredList.length" class="empty-tip">
+      {{ filterProjectId || searchKeyword ? '没有匹配的工作项' : '暂无同步数据，请先点击「同步数据」' }}
+    </div>
+    <!-- 分页（P3-5.6） -->
+    <div v-if="filteredList.length > pageSize" class="pagination-row">
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="filteredList.length"
+        layout="prev, pager, next, total"
+        size="small"
+      />
     </div>
 
     <!-- 工作项详情对话框 -->
@@ -87,13 +104,34 @@ import type { SyncedWorkItemMeta } from '@/api/types'
 
 const appStore = useAppStore()
 const filterProjectId = ref('')
+const searchKeyword = ref('')
 const detailVisible = ref(false)
 const selectedItem = ref<SyncedWorkItemMeta | null>(null)
 const workItems = ref<SyncedWorkItemMeta[]>([])
+const currentPage = ref(1)
+const pageSize = 20
 
-const displayList = computed(() => {
-  if (!filterProjectId.value) return workItems.value
-  return workItems.value.filter((w) => w.project_id === filterProjectId.value)
+/** 按项目 + 关键词过滤后的列表 */
+const filteredList = computed(() => {
+  let list = workItems.value
+  if (filterProjectId.value) {
+    list = list.filter((w) => w.project_id === filterProjectId.value)
+  }
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (kw) {
+    list = list.filter(
+      (w) =>
+        (w.title || '').toLowerCase().includes(kw) ||
+        (w.identifier || '').toLowerCase().includes(kw)
+    )
+  }
+  return list
+})
+
+/** 当前页数据 */
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filteredList.value.slice(start, start + pageSize)
 })
 
 async function refresh() {
@@ -150,6 +188,16 @@ onMounted(() => {
 
 .project-select {
   width: 200px;
+}
+
+.search-input {
+  width: 200px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $spacing-md;
 }
 
 .empty-tip {

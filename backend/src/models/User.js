@@ -1,5 +1,9 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../services/db.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
+
+/** 需要透明加解密的敏感字段 */
+const SENSITIVE_FIELDS = ['pingcode_client_secret', 'access_token', 'refresh_token'];
 
 export const User = sequelize.define('User', {
   id: {
@@ -35,7 +39,8 @@ export const User = sequelize.define('User', {
   pingcode_uid: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true
+    // 不设 unique: true —— 允许同一个 PingCode 账号关联多个本地用户，
+    // 避免多用户绑定同一 PingCode 账号时唯一约束冲突。
   },
   access_token: {
     type: DataTypes.TEXT,
@@ -80,4 +85,32 @@ export const User = sequelize.define('User', {
   timestamps: true,
   // Force sync to update schema since we changed PK
   // In prod, use migrations. Here, sequelize.sync({ alter: true }) in db.js handles it.
+  hooks: {
+    beforeSave: (instance) => {
+      // 仅加密本次被修改（或新创建）的敏感字段，避免每次 update 都重写全部密文列（防竞态）
+      for (const field of SENSITIVE_FIELDS) {
+        if (instance.changed(field)) {
+          const val = instance.getDataValue(field);
+          if (val !== null && val !== undefined && val !== '') {
+            instance.setDataValue(field, encrypt(val));
+          }
+        }
+      }
+    },
+    afterSave: (instance) => {
+      for (const field of SENSITIVE_FIELDS) {
+        const val = instance.getDataValue(field);
+        instance.setDataValue(field, decrypt(val));
+      }
+    },
+    afterFind: (instances) => {
+      const list = Array.isArray(instances) ? instances : (instances ? [instances] : []);
+      for (const instance of list) {
+        for (const field of SENSITIVE_FIELDS) {
+          const val = instance.getDataValue(field);
+          instance.setDataValue(field, decrypt(val));
+        }
+      }
+    },
+  },
 });

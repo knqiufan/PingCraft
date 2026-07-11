@@ -5,11 +5,12 @@ import { User, Role, UserRole } from '../models/index.js';
 import { appConfig } from '../config/index.js';
 import { success } from '../utils/response.js';
 import { withRetry } from '../utils/retry.js';
+import { loginLimiter, registerLimiter } from '../middleware/rateLimit.js';
 
 const router = express.Router();
 
-/** 注册 */
-router.post('/register', async (req, res, next) => {
+/** 注册（限流防批量注册） */
+router.post('/register', registerLimiter, async (req, res, next) => {
   const { username, password, email } = req.body;
   if (!username || !password) {
     return res.status(400).json({ success: false, error: '用户名和密码不能为空' });
@@ -41,8 +42,8 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
-/** 登录 */
-router.post('/login', async (req, res, next) => {
+/** 登录（限流防暴力破解） */
+router.post('/login', loginLimiter, async (req, res, next) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ success: false, error: '用户名和密码不能为空' });
@@ -69,9 +70,10 @@ router.post('/login', async (req, res, next) => {
     const isAdmin = roles.includes('admin');
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, roles, isAdmin },
+      // first_iat 标记会话首次签发时间，用于滑动续期时计算绝对最大有效期
+      { id: user.id, username: user.username, roles, isAdmin, first_iat: Math.floor(Date.now() / 1000) },
       appConfig.jwt.secret,
-      { expiresIn: '1d' }
+      { expiresIn: '7d' }
     );
 
     res.json({

@@ -19,6 +19,15 @@
         <div class="header-right">
           <el-button
             text
+            type="warning"
+            :icon="EditPen"
+            :disabled="!appStore.requirements.length"
+            @click="batchDialogVisible = true"
+          >
+            批量编辑
+          </el-button>
+          <el-button
+            text
             type="primary"
             :icon="Plus"
             @click="addDialogVisible = true"
@@ -111,12 +120,53 @@
       :default-assignee="appStore.pingcodeUserInfo?.display_name"
       @edit="handleDetailEdit"
     />
+
+    <!-- 批量编辑对话框（P3-5.3） -->
+    <el-dialog v-model="batchDialogVisible" title="批量编辑工作项" width="500px">
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        将以下设置应用到全部 {{ appStore.requirements.length }} 个工作项。留空/不选的字段不会被修改。
+      </el-alert>
+      <el-form label-width="90px">
+        <el-form-item label="工作项类型">
+          <el-select v-model="batchForm.type_id" clearable placeholder="不修改" style="width: 100%">
+            <el-option
+              v-for="t in appStore.workItemTypes"
+              :key="t.id"
+              :label="t.name"
+              :value="t.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-select v-model="batchForm.priority" clearable placeholder="不修改" style="width: 100%">
+            <el-option label="High" value="High" />
+            <el-option label="Medium" value="Medium" />
+            <el-option label="Low" value="Low" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责人">
+          <el-input v-model="batchForm.assignee_name" clearable placeholder="不修改" />
+        </el-form-item>
+        <el-form-item label="项目名称">
+          <el-input v-model="batchForm.project_name" clearable placeholder="不修改" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="applyBatchEdit">应用</el-button>
+      </template>
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { List, Upload, Plus } from '@element-plus/icons-vue'
+import { ref, computed, reactive } from 'vue'
+import { List, Upload, Plus, EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import type { WorkItem } from '@/api/types'
@@ -226,6 +276,40 @@ function handleUpdateRow(row: WorkItem, field: keyof WorkItem, value: string) {
   if (index !== -1) {
     appStore.updateRequirement(index, { [field]: value })
   }
+}
+
+/** 批量编辑（P3-5.3） */
+const batchDialogVisible = ref(false)
+const batchForm = reactive<{ type_id: string; priority: string; assignee_name: string; project_name: string }>({
+  type_id: '',
+  priority: '',
+  assignee_name: '',
+  project_name: '',
+})
+
+function applyBatchEdit() {
+  const patch: Partial<WorkItem> = {}
+  if (batchForm.type_id) patch.type_id = batchForm.type_id
+  if (batchForm.priority) patch.priority = batchForm.priority
+  if (batchForm.assignee_name) patch.assignee_name = batchForm.assignee_name
+  if (batchForm.project_name) patch.project_name = batchForm.project_name
+
+  if (Object.keys(patch).length === 0) {
+    ElMessage.warning('请至少填写一个要修改的字段')
+    return
+  }
+
+  appStore.requirements.forEach((_, index) => {
+    appStore.updateRequirement(index, patch)
+  })
+
+  ElMessage.success(`已批量更新 ${appStore.requirements.length} 个工作项`)
+  // 重置表单
+  batchForm.type_id = ''
+  batchForm.priority = ''
+  batchForm.assignee_name = ''
+  batchForm.project_name = ''
+  batchDialogVisible.value = false
 }
 </script>
 

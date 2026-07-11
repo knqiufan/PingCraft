@@ -113,32 +113,87 @@ export async function testModelConnection(config) {
  *   - solution_suggestion: 解决方案建议
  */
 export async function analyzeRequirements(text, userId) {
+  const result = await analyzeRequirementsRaw(text, userId);
+  return normalizeWorkItems(result);
+}
+
+/** 将 LLM 原始输出规范化为统一的工作项结构 */
+function normalizeWorkItems(result) {
+  const typeIdAllowList = ['story', 'task', 'bug', 'feature', 'epic'];
+  const currentTime = new Date().toISOString();
+  const workItems = Array.isArray(result) ? result : [];
+  return workItems.map((item) => ({
+    project_name: item.project_name || '未分类项目',
+    title: item.title || '未命名工作项',
+    description: item.description || '',
+    priority: ['High', 'Medium', 'Low'].includes(item.priority) ? item.priority : 'Medium',
+    estimated_hours: typeof item.estimated_hours === 'number' ? item.estimated_hours : 8,
+    start_at: item.start_at || currentTime,
+    type_id: typeIdAllowList.includes(item.type_id) ? item.type_id : 'story',
+    assignee_name: item.assignee_name || null,
+    solution_suggestion: item.solution_suggestion || '',
+  }));
+}
+
+/** 底层调用：返回 LLM 原始解析结果（供非流式和流式复用） */
+async function analyzeRequirementsRaw(text, userId) {
   const model = await getModelInstance(userId);
   const chain = analyzePrompt.pipe(model).pipe(parser);
   const currentTime = new Date().toISOString();
 
   try {
-    const result = await chain.invoke({
+    return await chain.invoke({
+      text,
+      current_time: currentTime,
+      format_instructions: parser.getFormatInstructions(),
+    });
+  } catch (e) {
+    console.error('[Agent] 需求分析失败:', e.message);
+    throw e;
+  }
+}
+
+/**
+ * 流式分析需求文档（P3-5.8）。
+ *
+ * LangChain 的 chain.stream() 配合 JsonOutputParser 会逐步 yield 已解析的部分结果。
+ * 通过 onProgress 回调将部分结果推送给前端（SSE），让用户在大文档分析时获得实时反馈。
+ *
+ * @param {string} text - 文档文本
+ * @param {string} userId - 用户 ID
+ * @param {Function} [onProgress] - 回调 (partialItems: Array) => void，收到部分结果时触发
+ * @returns {Promise<Array>} 最终完整的工作项列表
+ */
+export async function analyzeRequirementsStream(text, userId, onProgress) {
+  const model = await getModelInstance(userId);
+  const chain = analyzePrompt.pipe(model).pipe(parser);
+  const currentTime = new Date().toISOString();
+
+  let lastResult = null;
+  try {
+    const stream = await chain.stream({
       text,
       current_time: currentTime,
       format_instructions: parser.getFormatInstructions(),
     });
 
-    const typeIdAllowList = ['story', 'task', 'bug', 'feature', 'epic'];
-    const workItems = Array.isArray(result) ? result : [];
-    return workItems.map((item) => ({
-      project_name: item.project_name || '未分类项目',
-      title: item.title || '未命名工作项',
-      description: item.description || '',
-      priority: ['High', 'Medium', 'Low'].includes(item.priority) ? item.priority : 'Medium',
-      estimated_hours: typeof item.estimated_hours === 'number' ? item.estimated_hours : 8,
-      start_at: item.start_at || currentTime,
-      type_id: typeIdAllowList.includes(item.type_id) ? item.type_id : 'story',
-      assignee_name: item.assignee_name || null,
-      solution_suggestion: item.solution_suggestion || '',
-    }));
+    for await (const chunk of stream) {
+      if (Array.isArray(chunk) && chunk.length > 0) {
+        lastResult = chunk;
+        // 推送部分规范化的结果
+        onProgress?.(normalizeWorkItems(chunk));
+      }
+    }
   } catch (e) {
-    console.error('[Agent] 需求分析失败:', e.message);
+    console.error('[Agent] 流式需求分析失败:', e.message);
+    // 流式失败时回退到非流式调用
+    if (lastResult) {
+      return normalizeWorkItems(lastResult);
+    }
     throw e;
   }
+
+  // 流结束后用最终结果规范化（可能比最后一块更完整）
+  const finalRaw = lastResult || await analyzeRequirementsRaw(text, userId);
+  return normalizeWorkItems(finalRaw);
 }

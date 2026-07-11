@@ -21,6 +21,18 @@ export const SyncedProject = sequelize.define('SyncedProject', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  /** PingCode 侧最后更新时间，用于增量同步判断是否需要更新本地缓存 */
+  remote_updated_at: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'PingCode 项目最后更新时间（ISO 字符串或时间戳）',
+  },
+  /** 本地缓存是否已软删除（PingCode 侧已删除/归档） */
+  is_archived: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'PingCode 侧已删除/归档时标记为 true',
+  },
 }, {
   tableName: 'synced_projects',
   timestamps: true,

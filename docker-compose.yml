@@ -29,5 +29,11 @@ services:
       SEEKDB_DATABASE: pingcode_agent
       CORS_ORIGIN: http://localhost:3000
       FRONTEND_URL: http://localhost:3000
+    volumes:
+      # 持久化上传的需求文档，避免容器重启后丢失（P2-4.9）
+      - ./uploads:/app/backend/uploads
     depends_on:
       - seekdb
+    # 应用内置 SEEKDB 连接重试（SEEKDB_RETRY_COUNT），配合 restart 策略
+    # 在 SeekDB 就绪后自动恢复，无需依赖 seekdb 健康检查（不同基础镜像工具差异大）
+    restart: unless-stopped

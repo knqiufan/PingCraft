@@ -60,10 +60,18 @@ export const useAppStore = defineStore('app', () => {
       const d = res.data
       const addedP = d?.addedProjects ?? 0
       const addedW = d?.addedWorkItems ?? 0
-      ElMessage.success(
-        `同步完成：共 ${d?.projects ?? 0} 个项目、${d?.workItems ?? 0} 个工作项` +
-          (addedP > 0 || addedW > 0 ? `（本次新增 ${addedP} 个项目、${addedW} 个工作项）` : '')
-      )
+      const updatedW = d?.updatedWorkItems ?? 0
+      const archivedP = d?.archivedProjects ?? 0
+      const archivedW = d?.archivedWorkItems ?? 0
+      const parts = [`共 ${d?.projects ?? 0} 个项目、${d?.workItems ?? 0} 个工作项`]
+      const changes = []
+      if (addedP > 0) changes.push(`新增 ${addedP} 项目`)
+      if (addedW > 0) changes.push(`新增 ${addedW} 工作项`)
+      if (updatedW > 0) changes.push(`更新 ${updatedW} 工作项`)
+      if (archivedP > 0) changes.push(`归档 ${archivedP} 项目`)
+      if (archivedW > 0) changes.push(`归档 ${archivedW} 工作项`)
+      if (changes.length) parts.push(`（本次${changes.join('、')}）`)
+      ElMessage.success(`同步完成：${parts.join('')}`)
       await fetchSyncedData()
     } catch {
       // 错误已由拦截器处理
@@ -266,6 +274,8 @@ export const useAppStore = defineStore('app', () => {
       if (data.target_project_id) {
         selectedProjectId.value = data.target_project_id
         await fetchMetadata(data.target_project_id)
+        // 恢复后也检查重复，避免重新导入时创建重复工作项
+        await checkDuplicateItems()
       }
 
       ElMessage.success(`已恢复 ${data.requirements.length} 个工作项`)

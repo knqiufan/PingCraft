@@ -42,8 +42,19 @@ async function connectRelational() {
   await sequelize.authenticate();
   // 导入 models/index.js 以确保所有模型和关联关系都被注册
   await import('../models/index.js');
-  await sequelize.sync({ alter: true });
-  console.log('[DB] 关系数据库已连接');
+  // 生产环境仅 sync()（建表，不 ALTER），避免 DDL 锁表/数据风险；
+  // 开发环境保留 alter: true 以自动应用 schema 变更。
+  //
+  // ⚠️ 生产环境重要：模型新增字段时，sync() 不会自动给已有表加列！
+  // 升级时必须手动执行 DDL（如 ALTER TABLE ... ADD COLUMN ...），
+  // 或使用迁移工具（Umzug）。生产部署前请对照模型 diff 检查 schema。
+  if (appConfig.env === 'production') {
+    await sequelize.sync();
+    console.warn('[DB] 生产环境使用 sync()（不自动 ALTER）。若模型有新增字段，需手动执行 DDL 迁移。');
+  } else {
+    await sequelize.sync({ alter: true });
+  }
+  console.log(`[DB] 关系数据库已连接（${appConfig.env === 'production' ? 'sync' : 'sync+alter'}）`);
 }
 
 /** 初始化默认角色 */

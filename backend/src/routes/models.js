@@ -5,8 +5,17 @@ import { requireAuth } from '../middleware/auth.js';
 import { ModelConfig } from '../models/index.js';
 import { success } from '../utils/response.js';
 import { testModelConnection } from '../services/agent.js';
+import { maskSecret } from '../utils/crypto.js';
 
 const router = express.Router();
+
+/** 序列化模型配置：列表/详情接口中脱敏 api_key，仅返回掩码 */
+function serializeConfig(config) {
+  if (!config) return null;
+  const json = config.toJSON();
+  json.api_key = maskSecret(json.api_key);
+  return json;
+}
 
 /** 获取用户的所有模型配置 */
 router.get('/', requireAuth, async (req, res, next) => {
@@ -16,7 +25,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       where: { user_id: userId },
       order: [['createdAt', 'DESC']],
     });
-    res.json(success(configs));
+    res.json(success(configs.map(serializeConfig)));
   } catch (e) {
     next(e);
   }
@@ -63,10 +72,10 @@ router.get('/default', requireAuth, async (req, res, next) => {
         where: { user_id: userId },
         order: [['createdAt', 'ASC']],
       });
-      return res.json(success(firstConfig));
+      return res.json(success(serializeConfig(firstConfig)));
     }
 
-    res.json(success(config));
+    res.json(success(serializeConfig(config)));
   } catch (e) {
     next(e);
   }
@@ -84,7 +93,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ success: false, error: '配置不存在' });
     }
 
-    res.json(success(config));
+    res.json(success(serializeConfig(config)));
   } catch (e) {
     next(e);
   }
@@ -155,7 +164,7 @@ router.post('/', requireAuth, async (req, res, next) => {
       is_default: is_default || false,
     });
 
-    res.json(success(config, '创建成功'));
+    res.json(success(serializeConfig(config), '创建成功'));
   } catch (e) {
     next(e);
   }
@@ -188,24 +197,29 @@ router.put('/:id', requireAuth, async (req, res, next) => {
       );
     }
 
-    await config.update({
+    // 如果 api_key 是脱敏值（含 ****），说明前端未修改密钥，跳过更新
+    const updateFields = {
       ...(name && { name }),
       ...(provider && { provider }),
-      ...(api_key && { api_key }),
       ...(base_url !== undefined && { base_url }),
       ...(model && { model }),
       ...(temperature !== undefined && { temperature }),
       ...(max_tokens !== undefined && { max_tokens }),
       ...(is_default !== undefined && { is_default }),
-    });
+    };
+    if (api_key && !api_key.includes('****')) {
+      updateFields.api_key = api_key;
+    }
 
-    res.json(success(config, '更新成功'));
+    await config.update(updateFields);
+
+    res.json(success(serializeConfig(config), '更新成功'));
   } catch (e) {
     next(e);
   }
 });
 
-/** 删除模型配置 */
+/** 删除模型配置（若删除的是默认模型，自动将最早创建的配置设为默认） */
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -217,7 +231,20 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ success: false, error: '配置不存在' });
     }
 
+    const wasDefault = config.is_default;
     await config.destroy();
+
+    // P2-4.5: 删除默认模型后，自动将另一个设为默认，避免后续分析找不到默认模型
+    if (wasDefault) {
+      const nextDefault = await ModelConfig.findOne({
+        where: { user_id: userId },
+        order: [['createdAt', 'ASC']],
+      });
+      if (nextDefault) {
+        await nextDefault.update({ is_default: true });
+      }
+    }
+
     res.json(success(null, '删除成功'));
   } catch (e) {
     next(e);

@@ -10,23 +10,9 @@ import {
   WorkItemProperty,
   WorkItemPriority,
 } from '../models/index.js';
+import { runWithConcurrency } from '../utils/array.js';
 
 const CONCURRENCY_LIMIT = 3;
-
-async function runWithConcurrency(tasks, limit) {
-  const results = [];
-  let index = 0;
-
-  async function runNext() {
-    const i = index++;
-    if (i >= tasks.length) return;
-    results[i] = await tasks[i]();
-    await runNext();
-  }
-
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => runNext()));
-  return results;
-}
 
 /**
  * 拉取并存储单个项目的全部元数据（types / states / properties / priorities）
@@ -60,35 +46,39 @@ export async function fetchAndStoreMetadataForProject(
   const statesBatch = [];
   const propsBatch = [];
 
-  await Promise.all(typeList.map(async (t) => {
-    const [statesRes, propsRes] = await Promise.all([
-      getWorkItemStates(accessToken, projectId, t.id, domain),
-      getWorkItemProperties(accessToken, projectId, t.id, domain),
-    ]);
-    const stateList = Array.isArray(statesRes) ? statesRes : (statesRes?.values || []);
-    const propList = Array.isArray(propsRes) ? propsRes : (propsRes?.values || []);
+  // P2-4.13: type 级别也限制并发，避免大量类型一次性打满 PingCode API 限流
+  await runWithConcurrency(
+    typeList.map((t) => async () => {
+      const [statesRes, propsRes] = await Promise.all([
+        getWorkItemStates(accessToken, projectId, t.id, domain),
+        getWorkItemProperties(accessToken, projectId, t.id, domain),
+      ]);
+      const stateList = Array.isArray(statesRes) ? statesRes : (statesRes?.values || []);
+      const propList = Array.isArray(propsRes) ? propsRes : (propsRes?.values || []);
 
-    for (const s of stateList) {
-      const key = `${projectId}:${t.id}:${s.id}`;
-      if (existingStateIds.has(key)) continue;
-      statesBatch.push({
-        id: s.id, project_id: projectId, work_item_type_id: t.id,
-        user_id: userId, name: s.name || '', type: s.type || '', color: s.color || '',
-      });
-      existingStateIds.add(key);
-    }
+      for (const s of stateList) {
+        const key = `${projectId}:${t.id}:${s.id}`;
+        if (existingStateIds.has(key)) continue;
+        statesBatch.push({
+          id: s.id, project_id: projectId, work_item_type_id: t.id,
+          user_id: userId, name: s.name || '', type: s.type || '', color: s.color || '',
+        });
+        existingStateIds.add(key);
+      }
 
-    for (const p of propList) {
-      const key = `${projectId}:${t.id}:${p.id}`;
-      if (existingPropertyIds.has(key)) continue;
-      propsBatch.push({
-        id: p.id, project_id: projectId, work_item_type_id: t.id,
-        user_id: userId, name: p.name || p.id, type: p.type || '',
-        options: p.options || null,
-      });
-      existingPropertyIds.add(key);
-    }
-  }));
+      for (const p of propList) {
+        const key = `${projectId}:${t.id}:${p.id}`;
+        if (existingPropertyIds.has(key)) continue;
+        propsBatch.push({
+          id: p.id, project_id: projectId, work_item_type_id: t.id,
+          user_id: userId, name: p.name || p.id, type: p.type || '',
+          options: p.options || null,
+        });
+        existingPropertyIds.add(key);
+      }
+    }),
+    CONCURRENCY_LIMIT
+  );
 
   if (statesBatch.length > 0) {
     await WorkItemState.bulkCreate(statesBatch, { ignoreDuplicates: true });

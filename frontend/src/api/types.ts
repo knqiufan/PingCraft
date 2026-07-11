@@ -19,6 +19,8 @@ export interface WorkItem {
   priority: string
   estimated_hours: number
   start_at: string
+  /** 计划结束时间（ISO 8601） */
+  end_at?: string
   status?: string
   match?: { id: string; title: string; score?: number } | null
   /** PingCode 工作项类型 ID */
@@ -86,6 +88,7 @@ export interface SyncedWorkItemMeta {
   id: string
   project_id: string
   title: string
+  description?: string
   identifier?: string
   /** 关联项目名称展示用，可能由后端联表填充 */
   project_name?: string
@@ -127,6 +130,12 @@ export interface SyncData {
   workItems: number
   addedProjects?: number
   addedWorkItems?: number
+  /** 本次更新（PingCode 侧有变更）的工作项数 */
+  updatedWorkItems?: number
+  /** 本次标记归档（PingCode 侧已删除）的项目数 */
+  archivedProjects?: number
+  /** 本次标记归档的工作项数 */
+  archivedWorkItems?: number
 }
 
 /** 清除同步数据结果 */
@@ -191,7 +200,9 @@ export interface LoginResponse {
 
 /** 认证 URL 响应 */
 export interface LoginUrlResponse {
+  success: boolean
   url: string
+  error?: string
 }
 
 /** 统计分布项 */

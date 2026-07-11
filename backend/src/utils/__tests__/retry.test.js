@@ -61,4 +61,44 @@ describe('withRetry()', () => {
     const result = await promise;
     expect(result).toBe('ok');
   });
+
+  it('should NOT retry on 4xx client errors (default)', async () => {
+    const err400 = Object.assign(new Error('Bad Request'), { response: { status: 400 } });
+    const fn = vi.fn().mockRejectedValue(err400);
+
+    const catchPromise = withRetry(fn, { maxRetries: 3, baseDelay: 50 }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const error = await catchPromise;
+    expect(error.response.status).toBe(400);
+    expect(fn).toHaveBeenCalledTimes(1); // 不重试
+  });
+
+  it('should retry on 5xx server errors', async () => {
+    const err500 = Object.assign(new Error('Internal Server Error'), { response: { status: 500 } });
+    const fn = vi.fn()
+      .mockRejectedValueOnce(err500)
+      .mockResolvedValue('recovered');
+
+    const promise = withRetry(fn, { maxRetries: 2, baseDelay: 50, maxDelay: 200 });
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const result = await promise;
+    expect(result).toBe('recovered');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry on 4xx when retryOnAllErrors is true', async () => {
+    const err403 = Object.assign(new Error('Forbidden'), { response: { status: 403 } });
+    const fn = vi.fn()
+      .mockRejectedValueOnce(err403)
+      .mockResolvedValue('ok');
+
+    const promise = withRetry(fn, { maxRetries: 2, baseDelay: 50, retryOnAllErrors: true });
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const result = await promise;
+    expect(result).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
 });
