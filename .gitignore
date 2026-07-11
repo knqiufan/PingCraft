@@ -6,6 +6,7 @@ docs/
 doc/
 uploads/
 backend/uploads/
+HANDOFF.md
 
 # Environment variables (may contain secrets)
 .env
