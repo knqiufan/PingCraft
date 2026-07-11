@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { User, Role, UserRole } from '../models/index.js';
 import { appConfig } from '../config/index.js';
+import type { Response, NextFunction } from 'express';
+import type { AuthedRequest } from '../types/authRequest.js';
 
 /** 当 token 剩余有效期不足 25% 时，自动签发新 token 通过响应头下发（滑动续期 P2-4.3） */
 const REFRESH_THRESHOLD = 0.25; // 剩余 < 25% 时续期
@@ -8,6 +10,14 @@ const REFRESH_THRESHOLD = 0.25; // 剩余 < 25% 时续期
 const MAX_SESSION_LIFETIME_SEC = 30 * 24 * 3600;
 /** 单次 token 有效期 */
 const TOKEN_TTL = '7d';
+
+/** requireAuth 解码后的 JWT 载荷 */
+interface AuthTokenPayload {
+  id: string;
+  exp?: number;
+  iat?: number;
+  first_iat?: number;
+}
 
 /**
  * JWT 认证中间件
@@ -17,19 +27,21 @@ const TOKEN_TTL = '7d';
  *
  * 安全约束：自首次签发（first_iat）起超过 30 天后不再续期，强制重新认证。
  */
-export const requireAuth = async (req, res, next) => {
+export const requireAuth = async (req: AuthedRequest, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader?.split(' ')[1];
+  const token = (authHeader as string | undefined)?.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ success: false, error: '未提供认证令牌' });
+    res.status(401).json({ success: false, error: '未提供认证令牌' });
+    return;
   }
 
   try {
-    const decoded = jwt.verify(token, appConfig.jwt.secret);
+    const decoded = jwt.verify(token, appConfig.jwt.secret) as AuthTokenPayload;
     const user = await User.findByPk(decoded.id);
     if (!user) {
-      return res.status(401).json({ success: false, error: '用户不存在' });
+      res.status(401).json({ success: false, error: '用户不存在' });
+      return;
     }
 
     // 获取用户角色
@@ -38,7 +50,7 @@ export const requireAuth = async (req, res, next) => {
       include: [Role],
     });
 
-    const roles = userRoles.map(ur => ur.Role.name);
+    const roles = userRoles.map((ur) => (ur as UserRole & { Role?: Role }).Role?.name).filter((n): n is string => !!n);
     const isAdmin = roles.includes('admin');
 
     req.user = user;
@@ -60,7 +72,7 @@ export const requireAuth = async (req, res, next) => {
         const refreshedToken = jwt.sign(
           { id: user.id, username: user.username, roles, isAdmin, first_iat: firstIat },
           appConfig.jwt.secret,
-          { expiresIn: TOKEN_TTL }
+          { expiresIn: TOKEN_TTL },
         );
         res.setHeader('X-Refreshed-Token', refreshedToken);
       }
@@ -68,6 +80,6 @@ export const requireAuth = async (req, res, next) => {
 
     next();
   } catch {
-    return res.status(401).json({ success: false, error: '认证令牌无效或已过期' });
+    res.status(401).json({ success: false, error: '认证令牌无效或已过期' });
   }
 };

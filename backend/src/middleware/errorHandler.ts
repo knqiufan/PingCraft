@@ -1,10 +1,21 @@
+import type { Request, Response, NextFunction } from 'express';
 import { appConfig } from '../config/index.js';
+
+/** 带状态码的错误 */
+export interface HttpError extends Error {
+  status: number;
+}
 
 /**
  * 统一错误处理中间件
  * 放在所有路由之后注册
  */
-export const errorHandler = (err, req, res, _next) => {
+export const errorHandler = (
+  err: HttpError & Record<string, unknown>,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
   const status = err.status || 500;
   const message = err.message || '服务器内部错误';
 
@@ -30,8 +41,8 @@ export const errorHandler = (err, req, res, _next) => {
 /**
  * 创建一个带状态码的错误
  */
-export function createError(message, status = 500) {
-  const err = new Error(message);
+export function createError(message: string, status = 500): HttpError {
+  const err = new Error(message) as HttpError;
   err.status = status;
   return err;
 }

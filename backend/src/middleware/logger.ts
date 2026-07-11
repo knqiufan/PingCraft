@@ -1,8 +1,10 @@
+import type { Request, Response, NextFunction } from 'express';
+
 /**
  * 请求日志中间件
  * 记录请求方法、路径、状态码、耗时
  */
-export const requestLogger = (req, res, next) => {
+export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
   const start = Date.now();
   const { method, originalUrl } = req;
 
