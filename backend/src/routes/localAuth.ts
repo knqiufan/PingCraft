@@ -23,7 +23,7 @@ router.post('/register', registerLimiter, async (req: Request, res: Response, ne
       username,
       password_hash: hashedPassword,
       pingcode_email: email,
-    });
+    } as any);
 
     // 为新用户分配默认角色
     const defaultRole = await Role.findOne({ where: { name: 'user' } });

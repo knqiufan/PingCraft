@@ -34,7 +34,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: Nex
 });
 
 /** 测试模型连接（通过请求体传入配置，用于新增/编辑前测试） */
-router.post('/test', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.post('/test', requireAuth, async (req: AuthedRequest, res: Response, _next: NextFunction) => {
   try {
     const { provider, api_key, base_url, model } = req.body;
 
@@ -102,7 +102,7 @@ router.get('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: 
 });
 
 /** 测试模型连接 */
-router.post('/:id/test', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.post('/:id/test', requireAuth, async (req: AuthedRequest, res: Response, _next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const config = await ModelConfig.findOne({

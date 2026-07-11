@@ -1,7 +1,6 @@
 import express from 'express';
 import type { Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
-import { Op } from 'sequelize';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/permission.js';
 import type { AuthedRequest } from '../types/authRequest.js';
@@ -14,7 +13,7 @@ const router = express.Router();
 // ===== 角色管理 =====
 
 /** 获取所有角色 */
-router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/', requireAuth, async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const roles = await Role.findAll({
       order: [['createdAt', 'ASC']],
@@ -126,7 +125,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req: AuthedRequest, res:
 // ===== 权限管理 =====
 
 /** 获取所有权限 */
-router.get('/permissions', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/permissions', requireAuth, async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const permissions = await Permission.findAll({
       order: [['resource', 'ASC'], ['action', 'ASC']],

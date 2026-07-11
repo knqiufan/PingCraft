@@ -181,7 +181,9 @@ router.post('/import', requireAuth, ensureFreshToken, async (req: AuthedRequest,
     return res.status(400).json({ success: false, error: '请提供工作项列表' });
   }
 
-  const { access_token, domain, pingcode_user_id } = req.user!;
+  const access_token = req.user!.access_token!;
+  const domain = req.user!.domain!;
+  const pingcode_user_id = req.user!.pingcode_user_id!;
 
   try {
     // 校验 record_id 归属当前用户
@@ -257,7 +259,7 @@ router.post('/import', requireAuth, ensureFreshToken, async (req: AuthedRequest,
 
             // 为新项目拉取并存储元数据，确保后续 type_id / priority_id 能正确解析
             const metaCounts = await fetchAndStoreMetadataForProject(
-              req.user!.id, access_token, domain, targetProjectId,
+              req.user!.id, access_token, domain, targetProjectId!,
             );
             console.log(`[Import] 新项目元数据同步: +${metaCounts.types} types, +${metaCounts.priorities} priorities`);
           } catch (createErr: any) {
@@ -398,7 +400,9 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req: AuthedR
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   }
 
-  const { access_token, domain, pingcode_user_id } = req.user!;
+  const access_token = req.user!.access_token!;
+  const domain = req.user!.domain!;
+  const pingcode_user_id = req.user!.pingcode_user_id!;
 
   try {
     let recordBelongsToUser = false;
@@ -453,7 +457,7 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req: AuthedR
             sendEvent('project_created', { name: newProject.name });
 
             const metaCounts = await fetchAndStoreMetadataForProject(
-              req.user!.id, access_token, domain, targetProjectId,
+              req.user!.id, access_token, domain, targetProjectId!,
             );
             console.log(`[Import-Stream] 新项目元数据同步: +${metaCounts.types} types, +${metaCounts.priorities} priorities`);
           } catch (err: any) {
@@ -499,7 +503,7 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req: AuthedR
 
       const batchResult = await createWorkItemsBatch(
         access_token, pingcodeItems, domain,
-        (current, total, itemInfo) => {
+        (_current, _total, itemInfo) => {
           processedItems++;
           sendEvent('progress', {
             current: processedItems, total: totalItems,
@@ -562,7 +566,7 @@ router.post('/import-stream', requireAuth, ensureFreshToken, async (req: AuthedR
  * 更新单个 PingCode 工作项（P3-5.2：工作项更新/编辑能力）。
  * 支持 PATCH 语义：仅传入需要更新的字段。
  */
-router.patch('/work-items/:id', requireAuth, ensureFreshToken, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.patch('/work-items/:id', requireAuth, ensureFreshToken, async (req: AuthedRequest, res: Response, _next: NextFunction) => {
   const { id } = req.params as { id: string };
   if (!id) {
     return res.status(400).json({ success: false, error: '缺少工作项 ID' });
@@ -592,7 +596,8 @@ router.patch('/work-items/:id', requireAuth, ensureFreshToken, async (req: Authe
   }
 
   try {
-    const { access_token, domain } = req.user!;
+    const access_token = req.user!.access_token!;
+  const domain = req.user!.domain!;
     const result = await updateWorkItem(access_token, id, updateData, domain);
     res.json(success(result, '更新成功'));
   } catch (e: any) {

@@ -181,7 +181,7 @@ export async function getProjectStatsData(user: User, projectId: string): Promis
   if (cached) return cached;
 
   const accessToken = user.access_token;
-  const domain = user.domain;
+  const domain = user.domain ?? undefined;
 
   const project = await SyncedProject.findOne({
     where: { id: projectId, user_id: userId },

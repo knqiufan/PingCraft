@@ -74,7 +74,7 @@ async function initDefaultRoles(): Promise<void> {
   for (const roleData of defaultRoles) {
     const [role, created] = await Role.findOrCreate({
       where: { name: roleData.name },
-      defaults: roleData,
+      defaults: roleData as any,
     });
     if (created) {
       console.log(`[DB] 创建默认角色: ${role.display_name}`);
@@ -101,7 +101,7 @@ async function initDefaultAdmin(): Promise<void> {
   const user = await User.create({
     username: 'admin',
     password_hash: passwordHash,
-  });
+  } as any);
   await UserRole.create({
     user_id: user.id,
     role_id: adminRole.id,

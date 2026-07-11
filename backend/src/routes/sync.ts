@@ -39,7 +39,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req: AuthedReque
   const user = req.user!;
   const userId = user.id;
   const accessToken = user.access_token;
-  const domain = user.domain;
+  const domain = user.domain!;
 
   if (!accessToken) {
     return res.status(400).json({ success: false, error: '未连接 PingCode，请先完成授权' });

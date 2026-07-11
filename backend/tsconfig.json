@@ -18,11 +18,11 @@
     "removeComments": false,
 
     // 严格度（初始宽松，Phase 9 收紧）
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noImplicitReturns": false,
 
     // 互操作

@@ -112,7 +112,7 @@ router.post('/', requireAuth, requireAdmin, async (req: AuthedRequest, res: Resp
       username,
       password_hash,
       pingcode_email: email,
-    });
+    } as any);
 
     // 为新用户分配默认角色（user 角色）
     const defaultRole = await Role.findOne({ where: { name: 'user' } });
