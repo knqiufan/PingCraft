@@ -2,8 +2,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# 启用 pnpm（与项目包管理一致）
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# 启用 pnpm（固定版本，避免 @latest 引入破坏性策略变更）
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 # 先复制后端代码（.dockerignore 已排除 node_modules），安装全部依赖（含 typescript/tsx 以便编译）
 COPY backend/ ./backend/
