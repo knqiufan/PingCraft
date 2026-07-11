@@ -24,8 +24,8 @@ export interface BatchProgressItem {
 export interface BatchCreateResult {
   success: number;
   failed: number;
-  errors: Array<{ local_id: unknown; item: unknown; error: unknown }>;
-  created: Array<{ local_id: unknown; pingcode_id?: string; pingcode_identifier?: string; title: unknown }>;
+  errors: Array<{ local_id: any; item: any; error: any }>;
+  created: Array<{ local_id: any; pingcode_id?: string; pingcode_identifier?: string; title: any }>;
 }
 
 /**

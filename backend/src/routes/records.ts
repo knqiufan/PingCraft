@@ -1,20 +1,21 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import fs from 'fs/promises';
 import crypto from 'node:crypto';
 import { requireAuth } from '../middleware/auth.js';
+import type { AuthedRequest } from '../types/authRequest.js';
 import { ImportRecord, ImportRecordItem } from '../models/index.js';
 import { success } from '../utils/response.js';
-import { Op } from 'sequelize';
 
 const router = express.Router();
 
 /** 获取用户的导入记录列表 */
-router.get('/', requireAuth, async (req, res, next) => {
+router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const { page = 1, pageSize = 20, status } = req.query;
 
-    const where = { user_id: userId };
+    const where: Record<string, any> = { user_id: userId };
     if (status) where.status = status;
 
     const offset = (Number(page) - 1) * Number(pageSize);
@@ -38,11 +39,11 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /** 获取单个导入记录详情 */
-router.get('/:id', requireAuth, async (req, res, next) => {
+router.get('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -56,9 +57,9 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 创建导入记录 */
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const {
       file_name,
       requirements_count,
@@ -85,11 +86,11 @@ router.post('/', requireAuth, async (req, res, next) => {
 });
 
 /** 更新导入记录状态 */
-router.put('/:id', requireAuth, async (req, res, next) => {
+router.put('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -112,11 +113,11 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 删除导入记录 */
-router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -139,14 +140,14 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 获取导入记录的工作项明细列表 */
-router.get('/:id/items', requireAuth, async (req, res, next) => {
+router.get('/:id/items', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const { page = 1, pageSize = 50, status } = req.query;
 
     // 先验证记录是否属于当前用户
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -154,7 +155,7 @@ router.get('/:id/items', requireAuth, async (req, res, next) => {
     }
 
     // 构建查询条件
-    const where = { record_id: req.params.id };
+    const where: Record<string, any> = { record_id: req.params.id };
     if (status) where.status = status;
 
     const offset = (Number(page) - 1) * Number(pageSize);
@@ -178,13 +179,13 @@ router.get('/:id/items', requireAuth, async (req, res, next) => {
 });
 
 /** 获取原需求文档内容 */
-router.get('/:id/content', requireAuth, async (req, res, next) => {
+router.get('/:id/content', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     // 先验证记录是否属于当前用户
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -192,9 +193,9 @@ router.get('/:id/content', requireAuth, async (req, res, next) => {
     }
 
     if (!record.original_file_path) {
-      return res.status(404).json({ 
-        success: false, 
-        error: '原需求文档不存在（可能是旧版本记录）' 
+      return res.status(404).json({
+        success: false,
+        error: '原需求文档不存在（可能是旧版本记录）',
       });
     }
 
@@ -203,10 +204,10 @@ router.get('/:id/content', requireAuth, async (req, res, next) => {
     try {
       content = await fs.readFile(record.original_file_path, 'utf-8');
     } catch (err) {
-      if (err.code === 'ENOENT') {
-        return res.status(404).json({ 
-          success: false, 
-          error: '原需求文档文件已被删除' 
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return res.status(404).json({
+          success: false,
+          error: '原需求文档文件已被删除',
         });
       }
       throw err;
@@ -223,11 +224,11 @@ router.get('/:id/content', requireAuth, async (req, res, next) => {
 });
 
 /** 从导入记录恢复分析结果（返回工作项列表，用于继续编辑和导入） */
-router.get('/:id/restore', requireAuth, async (req, res, next) => {
+router.get('/:id/restore', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -239,7 +240,7 @@ router.get('/:id/restore', requireAuth, async (req, res, next) => {
       order: [['createdAt', 'ASC']],
     });
 
-    const requirements = items.map(item => ({
+    const requirements = items.map((item) => ({
       id: item.id,
       project_name: item.project_name || record.target_project_name || '',
       title: item.title,
@@ -272,11 +273,11 @@ router.get('/:id/restore', requireAuth, async (req, res, next) => {
  * 导出导入记录的工作项为 CSV（P3-5.5）。
  * 包含标题、描述、优先级、工时、负责人、状态等字段，便于协作和存档。
  */
-router.get('/:id/export', requireAuth, async (req, res, next) => {
+router.get('/:id/export', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const record = await ImportRecord.findOne({
-      where: { id: req.params.id, user_id: userId },
+      where: { id: req.params.id as string, user_id: userId },
     });
 
     if (!record) {
@@ -294,7 +295,7 @@ router.get('/:id/export', requireAuth, async (req, res, next) => {
       '描述', '解决方案建议',
     ];
 
-    const escapeCsv = (val) => {
+    const escapeCsv = (val: unknown): string => {
       if (val === null || val === undefined) return '';
       let str = String(val);
       // CSV 注入防护：以 = + - @ 开头的值在 Excel 中会被解释为公式，

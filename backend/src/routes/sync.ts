@@ -1,6 +1,8 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { ensureFreshToken } from '../middleware/tokenRefresh.js';
+import type { AuthedRequest } from '../types/authRequest.js';
 import { getProjects, getWorkItems, getMyself } from '../services/pingcode.js';
 import { seekdbClient } from '../services/db.js';
 import { SyncedProject, SyncedWorkItem } from '../models/index.js';
@@ -16,7 +18,14 @@ import { logAudit } from '../services/auditLog.js';
 const router = express.Router();
 const { syncWorkItemBatchSize, syncBatchDelayMs } = appConfig.seekdb;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** 待写入向量库的工作项条目 */
+interface VectorItemEntry {
+  item: any;
+  projId: string;
+  isNew: boolean;
+}
 
 /**
  * 增量同步 PingCode 项目和工作项到本地（关系表 + 向量库）。
@@ -26,8 +35,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  *   - 更新：remote_updated_at 变化的项目/工作项，更新关系表并重新 upsert 向量
  *   - 软删除：PingCode 侧已不存在的本地记录，标记 is_archived = true 并从向量库移除
  */
-router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) => {
-  const user = req.user;
+router.post('/sync-data', requireAuth, ensureFreshToken, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  const user = req.user!;
   const userId = user.id;
   const accessToken = user.access_token;
   const domain = user.domain;
@@ -49,7 +58,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     }
 
     const projectsRes = await getProjects(accessToken, domain);
-    const projectList = Array.isArray(projectsRes) ? projectsRes : (projectsRes?.values || []);
+    const projectList: any[] = Array.isArray(projectsRes) ? projectsRes : (projectsRes?.values || []);
 
     await ensureMetadata(userId, accessToken, domain, projectList);
 
@@ -60,9 +69,9 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     const existingProjectMap = new Map(existingProjects.map((p) => [p.id, p]));
     const remoteProjectIds = new Set(projectList.map((p) => p.id));
 
-    const newProjects = [];
-    const updatedProjectIds = []; // 需要重新 upsert 向量的项目 ID
-    const archivedProjectIds = []; // PingCode 侧已不存在的本地项目
+    const newProjects: any[] = [];
+    const updatedProjectIds: string[] = []; // 需要重新 upsert 向量的项目 ID
+    const archivedProjectIds: string[] = []; // PingCode 侧已不存在的本地项目
 
     for (const p of projectList) {
       const existing = existingProjectMap.get(p.id);
@@ -91,12 +100,12 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
           name: p.name,
           description: p.description || null,
           remote_updated_at: remoteUpdatedAt(p) || null,
-        }))
+        })),
       );
       await projectColl.upsert({
         ids: newProjects.map((p) => `${userId}_${p.id}`),
         documents: newProjects.map(
-          (p) => `Project: ${p.name}\nDescription: ${p.description || ''}`
+          (p) => `Project: ${p.name}\nDescription: ${p.description || ''}`,
         ),
         metadatas: newProjects.map((p) => ({ id: p.id, name: p.name, user_id: userId })),
       });
@@ -113,13 +122,13 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
             remote_updated_at: remoteUpdatedAt(p) || null,
             is_archived: false,
           },
-          { where: { id: p.id, user_id: userId } }
+          { where: { id: p.id, user_id: userId } },
         );
       }
       await projectColl.upsert({
         ids: toUpdate.map((p) => `${userId}_${p.id}`),
         documents: toUpdate.map(
-          (p) => `Project: ${p.name}\nDescription: ${p.description || ''}`
+          (p) => `Project: ${p.name}\nDescription: ${p.description || ''}`,
         ),
         metadatas: toUpdate.map((p) => ({ id: p.id, name: p.name, user_id: userId })),
       });
@@ -129,7 +138,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     if (archivedProjectIds.length > 0) {
       await SyncedProject.update(
         { is_archived: true },
-        { where: { id: archivedProjectIds, user_id: userId } }
+        { where: { id: archivedProjectIds, user_id: userId } },
       );
       await projectColl.delete({
         ids: archivedProjectIds.map((id) => `${userId}_${id}`),
@@ -137,7 +146,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     }
 
     console.log(
-      `[Sync] 项目：+${newProjects.length} 新增，~${updatedProjectIds.length} 更新，×${archivedProjectIds.length} 归档`
+      `[Sync] 项目：+${newProjects.length} 新增，~${updatedProjectIds.length} 更新，×${archivedProjectIds.length} 归档`,
     );
 
     /* ---- 工作项同步（新增 + 更新 + 软删除） ---- */
@@ -149,15 +158,15 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
 
     let totalNewItems = 0;
     let totalUpdatedItems = 0;
-    const allRemoteWorkItemIds = new Set();
-    const itemsToVector = []; // 需要重新 upsert 向量的工作项（新增 + 更新）
+    const allRemoteWorkItemIds = new Set<string>();
+    const itemsToVector: VectorItemEntry[] = []; // 需要重新 upsert 向量的工作项（新增 + 更新）
 
     // I3: 逐项目拉取，单个项目失败不影响其余项目的同步
     for (const proj of projectList) {
-      let itemList;
+      let itemList: any[];
       try {
         itemList = await getWorkItems(accessToken, proj.id, domain);
-      } catch (projErr) {
+      } catch (projErr: any) {
         console.warn(`[Sync] 项目 ${proj.id} 工作项拉取失败，跳过:`, projErr.message);
         continue;
       }
@@ -194,7 +203,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
             identifier: item.identifier || null,
             remote_updated_at: remoteUpdatedAt(item) || null,
           };
-        })
+        }),
       );
       totalNewItems = newItems.length;
     }
@@ -210,7 +219,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
           remote_updated_at: remoteUpdatedAt(item) || null,
           is_archived: false,
         },
-        { where: { id: item.id, user_id: userId } }
+        { where: { id: item.id, user_id: userId } },
       );
     }
     totalUpdatedItems = changedItems.length;
@@ -223,7 +232,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
         await workItemColl.upsert({
           ids: batch.map((x) => `${userId}_${x.item.id}`),
           documents: batch.map(
-            (x) => `Title: ${x.item.title}\nDescription: ${x.item.description || ''}`
+            (x) => `Title: ${x.item.title}\nDescription: ${x.item.description || ''}`,
           ),
           metadatas: batch.map((x) => ({
             id: x.item.id,
@@ -237,7 +246,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     }
 
     // 软删除：本地有但 PingCode 侧已不存在的工作项
-    const archivedWorkItemIds = [];
+    const archivedWorkItemIds: string[] = [];
     for (const existing of existingWorkItems) {
       if (!allRemoteWorkItemIds.has(existing.id) && !existing.is_archived) {
         archivedWorkItemIds.push(existing.id);
@@ -246,11 +255,11 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
     if (archivedWorkItemIds.length > 0) {
       await SyncedWorkItem.update(
         { is_archived: true },
-        { where: { id: archivedWorkItemIds, user_id: userId } }
+        { where: { id: archivedWorkItemIds, user_id: userId } },
       );
       // 从向量库移除
       const vecIds = chunk(archivedWorkItemIds, 200).map((batch) =>
-        batch.map((id) => `${userId}_${id}`)
+        batch.map((id) => `${userId}_${id}`),
       );
       for (const batchIds of vecIds) {
         await workItemColl.delete({ ids: batchIds });
@@ -259,7 +268,7 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
 
     if (totalNewItems > 0 || totalUpdatedItems > 0 || archivedWorkItemIds.length > 0) {
       console.log(
-        `[Sync] 工作项：+${totalNewItems} 新增，~${totalUpdatedItems} 更新，×${archivedWorkItemIds.length} 归档`
+        `[Sync] 工作项：+${totalNewItems} 新增，~${totalUpdatedItems} 更新，×${archivedWorkItemIds.length} 归档`,
       );
     }
 
@@ -283,8 +292,8 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
           archivedProjects: archivedProjectIds.length,
           archivedWorkItems: archivedWorkItemIds.length,
         },
-        '同步完成'
-      )
+        '同步完成',
+      ),
     );
   } catch (e) {
     next(e);
@@ -292,17 +301,17 @@ router.post('/sync-data', requireAuth, ensureFreshToken, async (req, res, next) 
 });
 
 /** 清除当前用户从 PingCode 同步到本地的数据（不含导入记录） */
-router.delete('/sync-data', requireAuth, async (req, res, next) => {
+router.delete('/sync-data', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await clearUserSyncedData(req.user.id);
+    const result = await clearUserSyncedData(req.user!.id);
     logAudit({
-      userId: req.user.id,
-      username: req.user.username,
+      userId: req.user!.id,
+      username: req.user!.username,
       action: 'CLEAR_SYNC_DATA',
       resource: 'sync-data',
       detail: result,
     });
-    invalidateStatsCache(req.user.id);
+    invalidateStatsCache(req.user!.id);
     res.json(success(result, '已清除本地同步数据'));
   } catch (e) {
     next(e);

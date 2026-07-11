@@ -17,7 +17,7 @@ export interface AuditEntry {
   /** 操作目标（如 'user:xxx'、'sync-data'） */
   resource?: string;
   /** 附加详情 */
-  detail?: Record<string, unknown>;
+  detail?: object;
   result?: 'success' | 'failed';
 }
 
@@ -27,7 +27,7 @@ export interface AuditRecord {
   username: string;
   action: string;
   resource: string;
-  detail: Record<string, unknown>;
+  detail: object;
   result: 'success' | 'failed';
 }
 

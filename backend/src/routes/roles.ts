@@ -1,18 +1,20 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
+import { Op } from 'sequelize';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/permission.js';
-import { Role, Permission, RolePermission, UserRole, User } from '../models/index.js';
+import type { AuthedRequest } from '../types/authRequest.js';
+import { Role, Permission, RolePermission, UserRole } from '../models/index.js';
 import { sequelize } from '../services/db.js';
 import { success } from '../utils/response.js';
-import { Op } from 'sequelize';
 
 const router = express.Router();
 
 // ===== 角色管理 =====
 
 /** 获取所有角色 */
-router.get('/', requireAuth, async (req, res, next) => {
+router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const roles = await Role.findAll({
       order: [['createdAt', 'ASC']],
@@ -24,7 +26,7 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /** 创建角色 */
-router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/', requireAuth, requireAdmin, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const { name, display_name, description, permissions } = req.body;
 
@@ -57,9 +59,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
 });
 
 /** 更新角色 */
-router.put('/:id', requireAuth, requireAdmin, async (req, res, next) => {
+router.put('/:id', requireAuth, requireAdmin, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const role = await Role.findByPk(req.params.id);
+    const role = await Role.findByPk(req.params.id as string);
 
     if (!role) {
       return res.status(404).json({ success: false, error: '角色不存在' });
@@ -97,9 +99,9 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res, next) => {
 });
 
 /** 删除角色 */
-router.delete('/:id', requireAuth, requireAdmin, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const role = await Role.findByPk(req.params.id);
+    const role = await Role.findByPk(req.params.id as string);
 
     if (!role) {
       return res.status(404).json({ success: false, error: '角色不存在' });
@@ -124,7 +126,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res, next) => {
 // ===== 权限管理 =====
 
 /** 获取所有权限 */
-router.get('/permissions', requireAuth, async (req, res, next) => {
+router.get('/permissions', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const permissions = await Permission.findAll({
       order: [['resource', 'ASC'], ['action', 'ASC']],
@@ -136,7 +138,7 @@ router.get('/permissions', requireAuth, async (req, res, next) => {
 });
 
 /** 创建权限 */
-router.post('/permissions', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/permissions', requireAuth, requireAdmin, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const { name, display_name, description, resource, action } = req.body;
 
@@ -160,14 +162,14 @@ router.post('/permissions', requireAuth, requireAdmin, async (req, res, next) =>
 });
 
 /** 获取角色的权限 */
-router.get('/:id/permissions', requireAuth, async (req, res, next) => {
+router.get('/:id/permissions', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const rolePermissions = await RolePermission.findAll({
       where: { role_id: req.params.id },
       include: [Permission],
     });
 
-    const permissions = rolePermissions.map(rp => rp.Permission);
+    const permissions = rolePermissions.map((rp) => (rp as RolePermission & { Permission: Permission }).Permission);
     res.json(success(permissions));
   } catch (e) {
     next(e);

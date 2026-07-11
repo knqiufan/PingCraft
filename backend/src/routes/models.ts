@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import { Op } from 'sequelize';
 import { requireAuth } from '../middleware/auth.js';
+import type { AuthedRequest } from '../types/authRequest.js';
 import { ModelConfig } from '../models/index.js';
 import { success } from '../utils/response.js';
 import { testModelConnection } from '../services/agent.js';
@@ -10,17 +12,17 @@ import { maskSecret } from '../utils/crypto.js';
 const router = express.Router();
 
 /** 序列化模型配置：列表/详情接口中脱敏 api_key，仅返回掩码 */
-function serializeConfig(config) {
+function serializeConfig(config: ModelConfig | null): Record<string, any> | null {
   if (!config) return null;
-  const json = config.toJSON();
+  const json = config.toJSON() as Record<string, any>;
   json.api_key = maskSecret(json.api_key);
   return json;
 }
 
 /** 获取用户的所有模型配置 */
-router.get('/', requireAuth, async (req, res, next) => {
+router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const configs = await ModelConfig.findAll({
       where: { user_id: userId },
       order: [['createdAt', 'DESC']],
@@ -32,7 +34,7 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /** 测试模型连接（通过请求体传入配置，用于新增/编辑前测试） */
-router.post('/test', requireAuth, async (req, res, next) => {
+router.post('/test', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const { provider, api_key, base_url, model } = req.body;
 
@@ -52,16 +54,16 @@ router.post('/test', requireAuth, async (req, res, next) => {
     });
 
     res.json(success(null, '连接成功'));
-  } catch (e) {
+  } catch (e: any) {
     const message = e.message || '连接失败';
     return res.status(400).json({ success: false, error: message });
   }
 });
 
 /** 获取默认模型配置 */
-router.get('/default', requireAuth, async (req, res, next) => {
+router.get('/default', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const config = await ModelConfig.findOne({
       where: { user_id: userId, is_default: true },
     });
@@ -82,9 +84,9 @@ router.get('/default', requireAuth, async (req, res, next) => {
 });
 
 /** 获取单个模型配置 */
-router.get('/:id', requireAuth, async (req, res, next) => {
+router.get('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const config = await ModelConfig.findOne({
       where: { id: req.params.id, user_id: userId },
     });
@@ -100,9 +102,9 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 测试模型连接 */
-router.post('/:id/test', requireAuth, async (req, res, next) => {
+router.post('/:id/test', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const config = await ModelConfig.findOne({
       where: { id: req.params.id, user_id: userId },
     });
@@ -121,16 +123,16 @@ router.post('/:id/test', requireAuth, async (req, res, next) => {
     });
 
     res.json(success(null, '连接成功'));
-  } catch (e) {
+  } catch (e: any) {
     const message = e.message || '连接失败';
     return res.status(400).json({ success: false, error: message });
   }
 });
 
 /** 创建模型配置 */
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const { name, provider, api_key, base_url, model, temperature, max_tokens, is_default } = req.body;
 
     // 验证必填字段
@@ -147,7 +149,7 @@ router.post('/', requireAuth, async (req, res, next) => {
     if (is_default) {
       await ModelConfig.update(
         { is_default: false },
-        { where: { user_id: userId } }
+        { where: { user_id: userId } },
       );
     }
 
@@ -171,9 +173,9 @@ router.post('/', requireAuth, async (req, res, next) => {
 });
 
 /** 更新模型配置 */
-router.put('/:id', requireAuth, async (req, res, next) => {
+router.put('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const config = await ModelConfig.findOne({
       where: { id: req.params.id, user_id: userId },
     });
@@ -193,12 +195,12 @@ router.put('/:id', requireAuth, async (req, res, next) => {
     if (is_default) {
       await ModelConfig.update(
         { is_default: false },
-        { where: { user_id: userId, id: { [Op.ne]: req.params.id } } }
+        { where: { user_id: userId, id: { [Op.ne]: req.params.id as string } } },
       );
     }
 
     // 如果 api_key 是脱敏值（含 ****），说明前端未修改密钥，跳过更新
-    const updateFields = {
+    const updateFields: Record<string, any> = {
       ...(name && { name }),
       ...(provider && { provider }),
       ...(base_url !== undefined && { base_url }),
@@ -220,9 +222,9 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 删除模型配置（若删除的是默认模型，自动将最早创建的配置设为默认） */
-router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const config = await ModelConfig.findOne({
       where: { id: req.params.id, user_id: userId },
     });

@@ -1,16 +1,18 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
+import { Op } from 'sequelize';
+import bcrypt from 'bcryptjs';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/permission.js';
+import type { AuthedRequest } from '../types/authRequest.js';
 import { User, Role, UserRole } from '../models/index.js';
 import { success } from '../utils/response.js';
 import { logAudit } from '../services/auditLog.js';
-import { Op } from 'sequelize';
-import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
 /** 获取用户列表（仅 admin） */
-router.get('/', requireAuth, async (req, res, next) => {
+router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     // 检查是否为 admin
     if (!req.isAdmin) {
@@ -20,7 +22,7 @@ router.get('/', requireAuth, async (req, res, next) => {
     const { page = 1, pageSize = 20, search } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
 
-    const where = {};
+    const where: any = {};
     if (search) {
       where[Op.or] = [
         { username: { [Op.like]: `%${search}%` } },
@@ -47,10 +49,10 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /** 获取用户详情 */
-router.get('/:id', requireAuth, async (req, res, next) => {
+router.get('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.params.id;
-    const currentUserId = req.user.id;
+    const userId = req.params.id as string;
+    const currentUserId = req.user!.id;
 
     // 只能查看自己或 admin 可以查看所有
     if (userId !== currentUserId && !req.isAdmin) {
@@ -71,11 +73,14 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       include: [Role],
     });
 
-    const roles = userRoles.map(ur => ({
-      id: ur.Role.id,
-      name: ur.Role.name,
-      display_name: ur.Role.display_name,
-    }));
+    const roles = userRoles.map((ur) => {
+      const r = (ur as UserRole & { Role: Role }).Role;
+      return {
+        id: r.id,
+        name: r.name,
+        display_name: r.display_name,
+      };
+    });
 
     res.json(success({ ...user.toJSON(), roles }));
   } catch (e) {
@@ -87,7 +92,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
  * 创建用户（仅 admin 可用，用于管理端创建账号）。
  * 普通注册统一走 POST /auth/local/register（含限流）。
  */
-router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/', requireAuth, requireAdmin, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const { username, password, email } = req.body;
 
@@ -125,10 +130,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
 });
 
 /** 更新用户 */
-router.put('/:id', requireAuth, async (req, res, next) => {
+router.put('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.params.id;
-    const currentUserId = req.user.id;
+    const userId = req.params.id as string;
+    const currentUserId = req.user!.id;
 
     // 只能修改自己或 admin 可以修改所有
     if (userId !== currentUserId && !req.isAdmin) {
@@ -166,17 +171,17 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** 删除用户（仅 admin） */
-router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     // 检查是否为 admin
     if (!req.isAdmin) {
       return res.status(403).json({ success: false, error: '无权限' });
     }
 
-    const userId = req.params.id;
+    const userId = req.params.id as string;
 
     // 不能删除自己
-    if (userId === req.user.id) {
+    if (userId === req.user!.id) {
       return res.status(400).json({ success: false, error: '不能删除自己' });
     }
 
@@ -185,16 +190,17 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ success: false, error: '用户不存在' });
     }
 
+    const deletedUsername = user.username;
     await user.destroy();
     // 删除用户时，同时删除角色关联
     await UserRole.destroy({ where: { user_id: userId } });
 
     logAudit({
-      userId: req.user.id,
-      username: req.user.username,
+      userId: req.user!.id,
+      username: req.user!.username,
       action: 'DELETE_USER',
       resource: `user:${userId}`,
-      detail: { deletedUsername: user.username },
+      detail: { deletedUsername },
     });
 
     res.json(success(null, '删除成功'));

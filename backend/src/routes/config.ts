@@ -1,6 +1,9 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { success } from '../utils/response.js';
+import type { AuthedRequest } from '../types/authRequest.js';
+import type { User } from '../models/User.js';
 import {
   PINGCODE_GRANT_AUTHORIZATION_CODE,
   PINGCODE_GRANT_CLIENT_CREDENTIALS,
@@ -13,7 +16,7 @@ const ALLOWED_GRANT_TYPES = new Set([
   PINGCODE_GRANT_CLIENT_CREDENTIALS,
 ]);
 
-function clearPingcodeConnection(user) {
+function clearPingcodeConnection(user: User): void {
   user.access_token = null;
   user.refresh_token = null;
   user.expires_at = null;
@@ -26,14 +29,14 @@ function clearPingcodeConnection(user) {
 }
 
 /** 保存 PingCode 配置 */
-router.post('/config', requireAuth, async (req, res, next) => {
+router.post('/config', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   const { client_id, client_secret, grant_type: bodyGrantType } = req.body;
   if (!client_id || !client_secret) {
     return res.status(400).json({ success: false, error: 'Client ID 和 Client Secret 不能为空' });
   }
 
   try {
-    const user = req.user;
+    const user = req.user!;
     const prevGrant =
       user.pingcode_grant_type || PINGCODE_GRANT_AUTHORIZATION_CODE;
     const nextGrant = bodyGrantType ?? prevGrant;
@@ -60,9 +63,9 @@ router.post('/config', requireAuth, async (req, res, next) => {
 });
 
 /** 获取配置信息（含连接状态） */
-router.get('/config', requireAuth, async (req, res, next) => {
+router.get('/config', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     res.json({
       client_id: user.pingcode_client_id || '',
       has_secret: !!user.pingcode_client_secret,

@@ -10,16 +10,14 @@ export interface RemoteItem {
   last_modified?: string;
   title?: string;
   description?: string | null;
-  [key: string]: unknown;
 }
 
-/** 本地同步缓存行 */
+/** 本地同步缓存行（不加索引签名，以便 SyncedProject/SyncedWorkItem 类结构兼容） */
 export interface SyncedRecord {
   is_archived?: boolean;
   remote_updated_at?: string | null;
   title?: string;
   description?: string | null;
-  [key: string]: unknown;
 }
 
 /** 提取 PingCode 对象的更新时间，用于增量同步判断 */

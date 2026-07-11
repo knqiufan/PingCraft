@@ -1,10 +1,12 @@
 import express from 'express';
+import type { Response, NextFunction } from 'express';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
+import type { AuthedRequest } from '../types/authRequest.js';
 import { parseFile } from '../services/parser.js';
 import { analyzeRequirements, analyzeRequirementsStream } from '../services/agent.js';
 import { ImportRecord, ImportRecordItem } from '../models/index.js';
@@ -31,12 +33,12 @@ const uploadMulti = multer({
  * 解码文件名（处理 UTF-8 编码的中文文件名）
  * Multer 使用 busboy 解析 multipart，originalname 可能是 Latin1 编码
  */
-function decodeFileName(originalname) {
+function decodeFileName(originalname: string): string {
   try {
     // 尝试将 Latin1 编码的字符串转换为 UTF-8
     const decoded = Buffer.from(originalname, 'latin1').toString('utf8');
     // 检查解码后是否为有效的 UTF-8 字符串
-    if (decoded && !decoded.includes('\ufffd')) {
+    if (decoded && !decoded.includes('�')) {
       return decoded;
     }
     return originalname;
@@ -48,12 +50,12 @@ function decodeFileName(originalname) {
 /**
  * 生成安全的文件名（移除不允许的字符）
  */
-function sanitizeFileName(fileName) {
+function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
 }
 
 /** 上传文件并分析需求 */
-router.post('/analyze', requireAuth, upload.single('file'), async (req, res, next) => {
+router.post('/analyze', requireAuth, upload.single('file'), async (req: AuthedRequest, res: Response, next: NextFunction) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: '请上传文件' });
   }
@@ -76,21 +78,21 @@ router.post('/analyze', requireAuth, upload.single('file'), async (req, res, nex
     await fs.mkdir(DEMAND_DIR, { recursive: true });
     await fs.writeFile(demandFilePath, text, 'utf-8');
 
-    const requirements = await analyzeRequirements(text, req.user.id);
+    const requirements = await analyzeRequirements(text, req.user!.id);
 
     // 为每条需求添加唯一 ID
     const data = requirements.map((item) => ({
       ...item,
       id: uuidv4(),
       status: 'new',
-    }));
+    })) as any[];
 
     // 创建导入记录
-    const uniqueProjectNames = [...new Set(requirements.map(r => r.project_name))];
+    const uniqueProjectNames = [...new Set(requirements.map((r) => r.project_name))];
     const recordId = uuidv4();
     const record = await ImportRecord.create({
       id: recordId,
-      user_id: req.user.id,
+      user_id: req.user!.id,
       file_name: fileName,
       original_file_path: demandFilePath,
       requirements_count: requirements.length,
@@ -117,7 +119,7 @@ router.post('/analyze', requireAuth, upload.single('file'), async (req, res, nex
         solution_suggestion: item.solution_suggestion || '',
         status: 'pending',
       }));
-      await ImportRecordItem.bulkCreate(recordItems);
+      await ImportRecordItem.bulkCreate(recordItems as any);
     }
 
     // 在响应中返回记录ID
@@ -133,7 +135,7 @@ router.post('/analyze', requireAuth, upload.single('file'), async (req, res, nex
  * 流式分析需求文档（P3-5.8）。
  * 通过 SSE 推送分析进度和部分结果，大文档分析时前端可实时展示已提取的工作项。
  */
-router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, res) => {
+router.post('/analyze-stream', requireAuth, upload.single('file'), async (req: AuthedRequest, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: '请上传文件' });
   }
@@ -144,10 +146,10 @@ router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, r
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
   });
 
-  function sendEvent(event, data) {
+  function sendEvent(event: string, data: any): void {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   }
 
@@ -164,7 +166,7 @@ router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, r
 
     sendEvent('progress', { stage: 'analyzing', message: '正在分析需求文档...' });
 
-    const requirements = await analyzeRequirementsStream(text, req.user.id, (partial) => {
+    const requirements = await analyzeRequirementsStream(text, req.user!.id, (partial) => {
       sendEvent('progress', {
         stage: 'extracting',
         message: `已提取 ${partial.length} 个工作项...`,
@@ -176,13 +178,13 @@ router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, r
       ...item,
       id: uuidv4(),
       status: 'new',
-    }));
+    })) as any[];
 
     const uniqueProjectNames = [...new Set(requirements.map((r) => r.project_name))];
     const recordId = uuidv4();
     const record = await ImportRecord.create({
       id: recordId,
-      user_id: req.user.id,
+      user_id: req.user!.id,
       file_name: fileName,
       original_file_path: demandFilePath,
       requirements_count: requirements.length,
@@ -208,12 +210,12 @@ router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, r
         solution_suggestion: item.solution_suggestion || '',
         status: 'pending',
       }));
-      await ImportRecordItem.bulkCreate(recordItems);
+      await ImportRecordItem.bulkCreate(recordItems as any);
     }
 
     sendEvent('complete', { data, record_id: record.id });
     res.end();
-  } catch (e) {
+  } catch (e: any) {
     await fs.unlink(filePath).catch(() => {});
     sendEvent('error', { message: e.message });
     res.end();
@@ -224,20 +226,20 @@ router.post('/analyze-stream', requireAuth, upload.single('file'), async (req, r
  * 多文件批量分析（P3-5.7）。
  * 接收多个文件，合并解析后统一分析，适合批量上传多个需求文档合并处理的场景。
  */
-router.post('/analyze-multi', requireAuth, (req, res, next) => {
-  uploadMulti(req, res, async (multerErr) => {
+router.post('/analyze-multi', requireAuth, (req: AuthedRequest, res: Response, next: NextFunction) => {
+  uploadMulti(req, res, async (multerErr: any) => {
     if (multerErr) {
       return res.status(400).json({ success: false, error: multerErr.message });
     }
-    const files = req.files;
+    const files = req.files as Express.Multer.File[] | undefined;
     if (!files || files.length === 0) {
       return res.status(400).json({ success: false, error: '请上传至少一个文件' });
     }
 
     try {
       // 逐个解析文件并合并文本
-      const parts = [];
-      const fileNames = [];
+      const parts: string[] = [];
+      const fileNames: string[] = [];
       for (const file of files) {
         const decodedName = decodeFileName(file.originalname);
         const text = await parseFile(file.path, decodedName);
@@ -254,18 +256,18 @@ router.post('/analyze-multi', requireAuth, (req, res, next) => {
       await fs.mkdir(DEMAND_DIR, { recursive: true });
       await fs.writeFile(demandFilePath, combinedText, 'utf-8');
 
-      const requirements = await analyzeRequirements(combinedText, req.user.id);
+      const requirements = await analyzeRequirements(combinedText, req.user!.id);
       const data = requirements.map((item) => ({
         ...item,
         id: uuidv4(),
         status: 'new',
-      }));
+      })) as any[];
 
       const uniqueProjectNames = [...new Set(requirements.map((r) => r.project_name))];
       const recordId = uuidv4();
       const record = await ImportRecord.create({
         id: recordId,
-        user_id: req.user.id,
+        user_id: req.user!.id,
         file_name: fileNames.join(', '),
         original_file_path: demandFilePath,
         requirements_count: requirements.length,
@@ -290,7 +292,7 @@ router.post('/analyze-multi', requireAuth, (req, res, next) => {
           solution_suggestion: item.solution_suggestion || '',
           status: 'pending',
         }));
-        await ImportRecordItem.bulkCreate(recordItems);
+        await ImportRecordItem.bulkCreate(recordItems as any);
       }
 
       res.json({ success: true, data, record_id: record.id });
