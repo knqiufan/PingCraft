@@ -7,14 +7,14 @@
  *
  * 开发环境对 PINGCODE_HOST 缺失等给出警告但不阻断启动。
  *
- * @returns {string[]} 错误消息数组，空数组表示校验通过
+ * @returns 错误消息数组，空数组表示校验通过
  */
 import { appConfig } from './index.js';
 
 const DEFAULT_JWT_SECRET = 'dev_secret_key';
 
-export function validateRequiredConfig() {
-  const errors = [];
+export function validateRequiredConfig(): string[] {
+  const errors: string[] = [];
   const isProd = appConfig.env === 'production';
 
   // JWT_SECRET 不能为默认值（开发环境也警告）
@@ -28,7 +28,7 @@ export function validateRequiredConfig() {
   if (isProd && !process.env.ENCRYPTION_KEY) {
     errors.push(
       '生产环境必须设置 ENCRYPTION_KEY（敏感字段加密密钥），' +
-      '生成方式：node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      '生成方式：node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
     );
   }
 

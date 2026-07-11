@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * 根据 NODE_ENV 加载对应的环境配置文件
  * 加载顺序：先加载 .env（基础），再加载 .env.{NODE_ENV}（覆盖）
  */
-function loadEnv() {
+function loadEnv(): void {
   // 先加载基础 .env
   dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -22,7 +22,7 @@ function loadEnv() {
 loadEnv();
 
 /** 从 PINGCODE_HOST（完整 URL）解析 host:port，供 OAuth 回调等无 scheme 的 domain 参数使用 */
-function pingcodeHostAuthority(hostUrl) {
+function pingcodeHostAuthority(hostUrl: string): string {
   if (!hostUrl) return '';
   try {
     return new URL(hostUrl).host;
@@ -33,8 +33,32 @@ function pingcodeHostAuthority(hostUrl) {
 
 const pingcodeHost = process.env.PINGCODE_HOST || '';
 
+/** 统一导出的配置对象类型 */
+export interface AppConfig {
+  env: string;
+  port: number;
+  isDev: boolean;
+  cors: { origin: string[] };
+  frontendUrl: string;
+  jwt: { secret: string };
+  pingcode: { redirectUri: string; host: string; defaultDomain: string };
+  seekdb: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    database: string;
+    retryCount: number;
+    retryIntervalMs: number;
+    /** 同步工作项时每批数量，2c2g 建议 20-30，4g+ 可调高 */
+    syncWorkItemBatchSize: number;
+    /** 批次间延迟（毫秒），缓解 embedding 模型内存压力 */
+    syncBatchDelayMs: number;
+  };
+}
+
 /** 统一导出的配置对象 */
-export const appConfig = {
+export const appConfig: AppConfig = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
   isDev: (process.env.NODE_ENV || 'development') === 'development',
