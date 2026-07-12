@@ -161,8 +161,8 @@ router.post('/', requireAuth, async (req: AuthedRequest, res: Response, next: Ne
       api_key,
       base_url: base_url || null,
       model,
-      temperature: temperature || 0,
-      max_tokens: max_tokens || null,
+      temperature: temperature ?? 0.7,
+      max_tokens: max_tokens ?? 272000,
       is_default: is_default || false,
     });
 

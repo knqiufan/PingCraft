@@ -45,8 +45,8 @@ function createOpenAIModel(config: LLMConfig): ChatOpenAI {
       apiKey: config.api_key,
     },
     modelName: config.model,
-    temperature: config.temperature ?? 0,
-    maxTokens: config.max_tokens ?? undefined,
+    temperature: config.temperature ?? 0.7,
+    maxTokens: config.max_tokens ?? 272000,
   });
 }
 
@@ -70,8 +70,8 @@ async function createAnthropicModel(config: LLMConfig): Promise<any> {
     anthropicApiKey: config.api_key,
     anthropicApiUrl: config.base_url || undefined,
     modelName: config.model,
-    temperature: config.temperature ?? 0,
-    maxTokens: config.max_tokens ?? 4096,
+    temperature: config.temperature ?? 0.7,
+    maxTokens: config.max_tokens ?? 272000,
   });
 }
 

@@ -25,7 +25,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="temperature" label="温度" width="80" align="center">
-        <template #default="{ row }">{{ row.temperature ?? 0 }}</template>
+        <template #default="{ row }">{{ row.temperature ?? 0.7 }}</template>
       </el-table-column>
       <el-table-column prop="is_default" label="默认" width="80" align="center">
         <template #default="{ row }">
@@ -97,15 +97,31 @@
         <el-form-item label="模型名称" prop="model">
           <el-input v-model="formData.model" placeholder="如: deepseek-chat, gpt-4" />
         </el-form-item>
-        <el-form-item label="温度">
-          <el-slider v-model="formData.temperature" :min="0" :max="2" :step="0.1" show-input />
-        </el-form-item>
-        <el-form-item label="最大 Tokens">
-          <el-input-number v-model="formData.max_tokens" :min="1" placeholder="留空使用默认值" style="width: 100%" />
-        </el-form-item>
         <el-form-item label="设为默认">
           <el-switch v-model="formData.is_default" />
         </el-form-item>
+        <div class="advanced-config">
+          <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+            <el-icon :class="{ 'is-expanded': showAdvanced }"><ArrowRight /></el-icon>
+            <span>高级配置</span>
+          </button>
+          <div v-show="showAdvanced" class="advanced-body">
+            <el-form-item label="温度">
+              <el-slider v-model="formData.temperature" :min="0" :max="2" :step="0.1" show-input />
+            </el-form-item>
+            <el-form-item label="最大 Tokens">
+              <el-radio-group v-model="formData.max_tokens" class="max-tokens-group">
+                <el-radio-button
+                  v-for="opt in MAX_TOKEN_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -125,8 +141,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { ref, onMounted, reactive, watch } from 'vue'
+import { Plus, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import {
   getModelConfigs,
@@ -139,6 +155,28 @@ import {
   type ModelConfigRequest,
 } from '@/api/models'
 
+/** 最大 Tokens 预设选项（展示标签 → LangChain 数值） */
+const MAX_TOKEN_OPTIONS = [
+  { label: '64k', value: 64000 },
+  { label: '200k', value: 200000 },
+  { label: '272k', value: 272000 },
+  { label: '300k', value: 300000 },
+  { label: '1M', value: 1000000 },
+] as const
+
+const DEFAULT_TEMPERATURE = 0.7
+const DEFAULT_MAX_TOKENS = 272000
+
+const MAX_TOKEN_VALUES = new Set<number>(MAX_TOKEN_OPTIONS.map((o) => o.value))
+
+/** 将已存 max_tokens 映射到预设；不在选项内则回落默认 272k */
+function resolveMaxTokens(value?: number | null): number {
+  if (value != null && MAX_TOKEN_VALUES.has(value)) {
+    return value
+  }
+  return DEFAULT_MAX_TOKENS
+}
+
 const loading = ref(false)
 const configs = ref<ModelConfig[]>([])
 const dialogVisible = ref(false)
@@ -146,6 +184,7 @@ const isEdit = ref(false)
 const saving = ref(false)
 const testingId = ref<string | null>(null)
 const testingInDialog = ref(false)
+const showAdvanced = ref(false)
 const formRef = ref<FormInstance>()
 
 const formData = reactive<ModelConfigRequest>({
@@ -154,9 +193,13 @@ const formData = reactive<ModelConfigRequest>({
   api_key: '',
   base_url: '',
   model: '',
-  temperature: 0,
-  max_tokens: undefined,
+  temperature: DEFAULT_TEMPERATURE,
+  max_tokens: DEFAULT_MAX_TOKENS,
   is_default: false,
+})
+
+watch(dialogVisible, (visible) => {
+  if (!visible) showAdvanced.value = false
 })
 
 const rules = {
@@ -190,14 +233,15 @@ async function loadConfigs() {
 function openCreateDialog() {
   isEdit.value = false
   currentEditId.value = undefined
+  showAdvanced.value = false
   Object.assign(formData, {
     name: '',
     provider: 'openai',
     api_key: '',
     base_url: '',
     model: '',
-    temperature: 0,
-    max_tokens: undefined,
+    temperature: DEFAULT_TEMPERATURE,
+    max_tokens: DEFAULT_MAX_TOKENS,
     is_default: false,
   })
   dialogVisible.value = true
@@ -206,6 +250,7 @@ function openCreateDialog() {
 function editConfig(config: ModelConfig) {
   isEdit.value = true
   currentEditId.value = config.id
+  showAdvanced.value = false
   Object.assign(formData, {
     name: config.name,
     provider: config.provider,
@@ -213,8 +258,8 @@ function editConfig(config: ModelConfig) {
     api_key: '',
     base_url: config.base_url || '',
     model: config.model,
-    temperature: config.temperature ?? 0,
-    max_tokens: config.max_tokens ?? undefined,
+    temperature: config.temperature ?? DEFAULT_TEMPERATURE,
+    max_tokens: resolveMaxTokens(config.max_tokens),
     is_default: config.is_default,
   })
   // 清除可能残留的校验错误
@@ -337,5 +382,45 @@ onMounted(() => {
   text-align: center;
   color: $text-tertiary;
   font-size: $font-size-sm;
+}
+
+.advanced-config {
+  margin-top: $spacing-sm;
+  padding-top: $spacing-sm;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--el-color-primary);
+  font-size: $font-size-sm;
+  cursor: pointer;
+  line-height: 1.5;
+
+  .el-icon {
+    transition: transform 0.2s ease;
+
+    &.is-expanded {
+      transform: rotate(90deg);
+    }
+  }
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+.advanced-body {
+  margin-top: $spacing-md;
+}
+
+.max-tokens-group {
+  display: flex;
+  flex-wrap: wrap;
 }
 </style>

@@ -46,8 +46,8 @@ ModelConfig.init(
     api_key: { type: DataTypes.TEXT, allowNull: false, comment: 'API 密钥' },
     base_url: { type: DataTypes.STRING, allowNull: true, comment: 'API 基础 URL' },
     model: { type: DataTypes.STRING, allowNull: false, comment: '模型名称，如 "deepseek-chat", "gpt-4"' },
-    temperature: { type: DataTypes.FLOAT, allowNull: true, defaultValue: 0, comment: '温度参数，控制随机性' },
-    max_tokens: { type: DataTypes.INTEGER, allowNull: true, comment: '最大生成 tokens 数' },
+    temperature: { type: DataTypes.FLOAT, allowNull: true, defaultValue: 0.7, comment: '温度参数，控制随机性' },
+    max_tokens: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 272000, comment: '最大生成 tokens 数' },
     is_default: { type: DataTypes.BOOLEAN, defaultValue: false, comment: '是否为默认配置' },
   },
   {
