@@ -1,5 +1,27 @@
 {
-	"dependencies": {
-		"pinia": "^3.0.4"
-	}
+  "name": "pingcraft",
+  "private": true,
+  "version": "0.0.0",
+  "description": "PingCraft — AI-powered requirements analysis & import tool for PingCode (monorepo root)",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "cli": "pnpm -F cli exec pingcode"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "onnxruntime-node",
+      "protobufjs",
+      "sharp",
+      "@parcel/watcher"
+    ]
+  }
 }

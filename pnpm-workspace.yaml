@@ -1,0 +1,8 @@
+packages:
+  # 现有应用
+  - 'backend'
+  - 'frontend'
+  # CLI 工具（Phase 0 引入）
+  - 'cli'
+  # 预留：Phase 3 抽取的共享 SDK 包
+  - 'packages/*'
