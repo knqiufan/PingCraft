@@ -18,6 +18,9 @@ import { registerKanbanCommands } from './kanban.js';
 import { registerWaterfallCommands } from './waterfall.js';
 import { registerDirectoryCommands } from './directory.js';
 import { registerCommonCommands } from './common.js';
+import { registerWikiCommands } from './wiki.js';
+import { registerMcpCommands } from './mcp.js';
+import { registerPingcraftCommands } from './pingcraft.js';
 
 /** 将所有命令注册到给定 program */
 export function registerCommands(program: Command): void {
@@ -35,6 +38,9 @@ export function registerCommands(program: Command): void {
   registerWaterfallCommands(program);
   registerDirectoryCommands(program);
   registerCommonCommands(program);
+  registerWikiCommands(program);
+  registerMcpCommands(program);
+  registerPingcraftCommands(program);
 }
 
 export { CAPABILITIES } from './capabilities.js';

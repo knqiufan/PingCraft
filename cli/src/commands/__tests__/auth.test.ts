@@ -43,6 +43,7 @@ vi.mock('../../sdk/index.js', () => {
     createDirectoryModule: vi.fn(() => stub()),
     createCommonResourcesModule: vi.fn(() => stub()),
     createLogsModule: vi.fn(() => stub()),
+    createWikiModule: vi.fn(() => stub()),
   };
 });
 

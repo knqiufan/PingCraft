@@ -64,5 +64,13 @@ export type { CommonResourcesModule, Principal } from './modules/commonResources
 export { createLogsModule } from './modules/logs.js';
 export type { LogEntry, LogsModule } from './modules/logs.js';
 
+export { createWikiModule } from './modules/wiki.js';
+export type { WikiSpace, WikiPage, WikiPageVersion, WikiModule } from './modules/wiki.js';
+
+export { createPingcraftClient, consumeSSE } from './pingcraft/client.js';
+export type { PingcraftClient, PingcraftClientOptions, SseEvent } from './pingcraft/client.js';
+export { createPingcraftApi, runOrchestrator } from './pingcraft/index.js';
+export type { PingcraftApi, LoginResult, AnalyzeResult, ImportStreamHandlers, RunOrchestratorParams } from './pingcraft/index.js';
+
 /** SDK 版本（Phase 3 抽包后单独维护） */
-export const SDK_VERSION = '0.3.0';
+export const SDK_VERSION = '0.4.0';

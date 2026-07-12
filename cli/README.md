@@ -4,7 +4,7 @@
 
 PingCraft CLI 是面向 [PingCode](https://pingcode.com) 项目管理平台与 PingCraft 需求分析后端的命令行工具，同时可作为 **MCP Server** 接入 AI Agent，也可作为 **库** 在 Node.js 项目中直接调用 SDK。
 
-> ✅ **Phase 0–2 已完成**（tag `v0.1.0` / `v0.2.0` / `v0.3.0`）：鉴权、项目/工作项全模块、Scrum/发布/看板/瀑布、全局个人/组织与通用资源可用。完整计划见仓库根 `docs/cli/`。
+> ✅ **Phase 0–3 已完成**（tag `v0.1.0`–`v0.4.0`）：鉴权、项目/工作项全模块、Scrum/发布/看板/瀑布、全局资源、Wiki、MCP Server、PingCraft 业务可用。共享 SDK 抽包待专用 PR。完整计划见仓库根 `docs/cli/`。
 
 ## 快速开始
 
@@ -71,6 +71,49 @@ pingcode work-item-state list --project <pid> --type <tid>
 pingcode work-item-property list --project <pid> --type <tid>
 pingcode work-item-priority list --project <pid>
 ```
+
+## MCP Server（Agent 集成，Phase 3）
+
+`pingcode mcp serve` 以 stdio 启动 MCP Server，供 AI Agent（如 Claude Code）直连 PingCode。
+
+```jsonc
+// .mcp.json —— Claude Code / Agent 配置示例
+{
+  "mcpServers": {
+    "pingcode": {
+      "command": "pingcode",
+      "args": ["mcp", "serve", "--core-only"]
+    }
+  }
+}
+```
+
+- 默认注册 ~14 个核心 tool（`work-item__list/get/create`、`project__list`、`sprint__list`、`myself__get` 等）。
+- `--include sprint,wiki` 启用可选 tool（写操作）；`--core-only` 仅核心。
+- 危险操作（create/update/delete）描述前缀 `⚠️ destructive`。
+- 自省：`pingcode mcp tools --json` 输出 tool 清单与 inputSchema。
+
+## Wiki 知识库（Phase 3）
+
+```bash
+pingcode wiki space list | wiki space create --name 新空间
+pingcode wiki page list --space <sid> | wiki page create --space <sid> --title 标题
+pingcode wiki page body get <id>            # 正文输出到 stdout
+pingcode wiki page body update <id> --content ...
+pingcode wiki page versions <id> | wiki page restore <id> <versionId>
+```
+
+## PingCraft 业务（Phase 3）
+
+直连本地 PingCraft 后端（`PINGCRAFT_API_URL`，默认 http://localhost:3000），用本地账号 JWT（`pingcraft auth login`）。
+
+```bash
+pingcode pingcraft auth login --username admin --password '...'
+pingcode pingcraft analyze --file requirements.docx --json
+pingcode pingcraft run requirements.docx --project <pid> --auto-import --json   # 一键：解析→匹配→查重→导入
+```
+
+`run` 编排进度走 stderr，结果包络走 stdout。`import-stream` 的 SSE 事件（start/progress/project_created/complete/error）由内置 `consumeSSE` 解析。
 
 ## 项目管理补全（Phase 2）
 

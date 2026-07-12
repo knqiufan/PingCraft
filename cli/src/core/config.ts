@@ -37,6 +37,8 @@ export const profileSchema = z.object({
   client_secret: z.string().optional(),
   redirect_uri: z.string().optional(),
   pingcraft_api_url: z.string().optional(),
+  /** PingCraft 本地后端 JWT（与 PingCode 官方 token 分离） */
+  pingcraft_token: z.string().optional(),
   token: tokenSchema.optional(),
 });
 
@@ -58,6 +60,7 @@ export interface ResolvedProfile {
   clientSecret?: string;
   redirectUri?: string;
   pingcraftApiUrl?: string;
+  pingcraftToken?: string;
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: string;
@@ -149,6 +152,7 @@ export interface LoadConfigOptions {
   accessToken?: string;
   redirectUri?: string;
   pingcraftApiUrl?: string;
+  pingcraftToken?: string;
   /** 配置文件路径（测试用） */
   configFilePath?: string;
 }
@@ -179,6 +183,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedProfile {
   const clientSecret = pick(opts.clientSecret, process.env.PINGCODE_CLIENT_SECRET, fileProfile.client_secret);
   const redirectUri = pick(opts.redirectUri, process.env.PINGCODE_REDIRECT_URI, fileProfile.redirect_uri);
   const pingcraftApiUrl = pick(opts.pingcraftApiUrl, process.env.PINGCRAFT_API_URL, fileProfile.pingcraft_api_url);
+  const pingcraftToken = pick(opts.pingcraftToken, process.env.PINGCRAFT_TOKEN, fileProfile.pingcraft_token);
   const accessToken = pick(opts.accessToken, process.env.PINGCODE_ACCESS_TOKEN, fileToken.access_token);
   const refreshToken = pick(undefined, process.env.PINGCODE_REFRESH_TOKEN, fileToken.refresh_token);
   const expiresAt = pick(undefined, undefined, fileToken.expires_at);
@@ -190,6 +195,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedProfile {
     clientSecret,
     redirectUri,
     pingcraftApiUrl,
+    pingcraftToken,
     accessToken,
     refreshToken,
     expiresAt,

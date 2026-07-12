@@ -10,12 +10,14 @@
 import type { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, type ResolvedProfile } from '../core/config.js';
+import { loadConfig, readConfigFile, writeConfigFile, type ResolvedProfile } from '../core/config.js';
 import { loadCredentials, saveCredentials } from '../core/auth.js';
 import { CliError, ExitCode, ErrorCode, emitError, toCliError } from '../core/errors.js';
 import type { OutputContext } from '../core/output.js';
 import {
   createClient,
+  createPingcraftClient,
+  createPingcraftApi,
   createAuthModule,
   createProjectsModule,
   createWorkItemsModule,
@@ -29,6 +31,7 @@ import {
   createDirectoryModule,
   createCommonResourcesModule,
   createLogsModule,
+  createWikiModule,
   type PingCodeClient,
   type AuthModule,
   type ProjectsModule,
@@ -43,6 +46,7 @@ import {
   type DirectoryModule,
   type CommonResourcesModule,
   type LogsModule,
+  type WikiModule,
   type TokenResponse,
 } from '../sdk/index.js';
 
@@ -53,6 +57,7 @@ export interface ConnectionOptions {
   clientId?: string;
   clientSecret?: string;
   redirectUri?: string;
+  pingcraftApiUrl?: string;
 }
 
 /** 输出选项（定义在具体命令上） */
@@ -133,6 +138,7 @@ export interface ClientBundle {
   directory: DirectoryModule;
   commonResources: CommonResourcesModule;
   logs: LogsModule;
+  wiki: WikiModule;
 }
 
 /**
@@ -204,7 +210,35 @@ export function buildClient(conn: ConnectionOptions = {}): ClientBundle {
     directory: createDirectoryModule(client),
     commonResources: createCommonResourcesModule(client),
     logs: createLogsModule(client),
+    wiki: createWikiModule(client),
   };
+}
+
+// ---- PingCraft 后端客户端装配 ----
+
+/** PingCraft JWT 存取（与 PingCode OAuth token 分离，存于 profile.pingcraft_token） */
+export function loadPingcraftToken(profileName: string): string | undefined {
+  return readConfigFile().profiles[profileName]?.pingcraft_token;
+}
+
+export function savePingcraftToken(profileName: string, token: string): void {
+  const file = readConfigFile();
+  const profiles = { ...file.profiles };
+  profiles[profileName] = { ...(profiles[profileName] ?? {}), pingcraft_token: token };
+  writeConfigFile({ ...file, profiles });
+}
+
+/** PingCraft 客户端 + API 装配 */
+export interface PingcraftBundle {
+  profile: ResolvedProfile;
+  api: ReturnType<typeof createPingcraftApi>;
+}
+
+export function buildPingcraft(conn: ConnectionOptions = {}): PingcraftBundle {
+  const profile = loadConfig({ profile: conn.profile, host: conn.host });
+  const baseURL = profile.pingcraftApiUrl ?? 'http://localhost:3000';
+  const client = createPingcraftClient({ baseURL, getToken: () => loadPingcraftToken(profile.name) });
+  return { profile, api: createPingcraftApi(client) };
 }
 
 /** 测试用：runHandler 调 process.exit 时抛出的信号（便于断言退出码） */
