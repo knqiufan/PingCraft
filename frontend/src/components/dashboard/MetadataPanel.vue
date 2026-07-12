@@ -8,20 +8,18 @@
     </template>
     <el-tabs v-model="activeTab">
       <el-tab-pane label="工作项类型" name="types">
-        <el-table :data="appStore.workItemTypes" stripe max-height="360">
-          <el-table-column prop="id" label="ID" width="120" />
-          <el-table-column prop="project_name" label="项目名称" width="180" show-overflow-tooltip />
-          <el-table-column prop="name" label="名称" min-width="120" />
-          <el-table-column prop="group" label="分组" width="120" />
+        <el-table :data="appStore.workItemTypes" stripe max-height="360" class="meta-table">
+          <el-table-column prop="project_name" label="项目名称" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" show-overflow-tooltip />
+          <el-table-column prop="group" label="分组" show-overflow-tooltip />
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="工作项状态" name="states">
-        <el-table :data="appStore.workItemStates" stripe max-height="360">
-          <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
-          <el-table-column prop="project_name" label="项目名称" width="180" show-overflow-tooltip />
-          <el-table-column prop="name" label="名称" width="100" />
-          <el-table-column prop="type" label="类型" width="80" />
-          <el-table-column label="颜色" width="80">
+        <el-table :data="appStore.workItemStates" stripe max-height="360" class="meta-table">
+          <el-table-column prop="project_name" label="项目名称" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" show-overflow-tooltip />
+          <el-table-column prop="type" label="类型" show-overflow-tooltip />
+          <el-table-column label="颜色">
             <template #default="{ row }">
               <span
                 v-if="row.color"
@@ -34,18 +32,16 @@
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="工作项属性" name="properties">
-        <el-table :data="appStore.workItemProperties" stripe max-height="360">
-          <el-table-column prop="id" label="ID" width="120" />
-          <el-table-column prop="project_name" label="项目名称" width="180" show-overflow-tooltip />
-          <el-table-column prop="name" label="名称" width="120" />
-          <el-table-column prop="type" label="类型" width="80" />
+        <el-table :data="appStore.workItemProperties" stripe max-height="360" class="meta-table">
+          <el-table-column prop="project_name" label="项目名称" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" show-overflow-tooltip />
+          <el-table-column prop="type" label="类型" show-overflow-tooltip />
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="工作项优先级" name="priorities">
-        <el-table :data="appStore.workItemPriorities" stripe max-height="360">
-          <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
-          <el-table-column prop="project_name" label="项目名称" width="180" show-overflow-tooltip />
-          <el-table-column prop="name" label="名称" width="120" />
+        <el-table :data="appStore.workItemPriorities" stripe max-height="360" class="meta-table">
+          <el-table-column prop="project_name" label="项目名称" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" show-overflow-tooltip />
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -83,6 +79,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.meta-table {
+  width: auto;
+  max-width: 100%;
 }
 
 .color-dot {

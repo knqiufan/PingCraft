@@ -12,9 +12,13 @@
       style="width: 100%"
       max-height="400"
     >
-      <el-table-column prop="id" label="项目 ID" width="220" show-overflow-tooltip />
       <el-table-column prop="name" label="项目名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+      <el-table-column label="同步时间" min-width="160">
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="100" align="center" fixed="right">
         <template #default="{ row }">
           <el-button
