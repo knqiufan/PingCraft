@@ -36,26 +36,40 @@ interface StatePayload {
   userId?: string;
 }
 
-/** 通过 state 参数解析用户（state JWT 必须有效且与 cookie 中的 oauth_user_id 一致） */
-async function getUserFromState(state: unknown, expectedUserId: string): Promise<User | null> {
-  if (!state || !expectedUserId) return null;
+/**
+ * 通过 state JWT 解析用户。
+ * OAuth 标准做法：已签名的 state 本身即可防 CSRF；若同时有 oauth_user_id cookie，则必须一致。
+ */
+async function getUserFromState(state: unknown, expectedUserId?: string): Promise<User | null> {
+  if (!state || typeof state !== 'string') return null;
   try {
-    const decoded = jwt.verify(state as string, appConfig.jwt.secret) as StatePayload;
-    // state 中的 userId 必须与 cookie 中的 oauth_user_id 一致（防 CSRF / 篡改攻击）
-    if (decoded.userId !== expectedUserId) return null;
-    return await User.findByPk(decoded.userId!);
+    const decoded = jwt.verify(state, appConfig.jwt.secret) as StatePayload;
+    if (!decoded.userId) return null;
+    if (expectedUserId && decoded.userId !== expectedUserId) return null;
+    return await User.findByPk(decoded.userId);
   } catch {
     return null;
   }
 }
 
-/** 通过 Cookie 获取用户（辅助 state 解析，不做独立兜底） */
+/** 通过 Cookie 中的 oauth_state（及可选 oauth_user_id）定位用户——PingCode 未回传 state 时的兜底 */
 async function getUserFromOAuthCookies(req: Request): Promise<User | null> {
   const cookies = parseCookies(req.headers.cookie);
-  const userId = cookies.oauth_user_id;
-  const state = cookies.oauth_state || (req.query.state as string | undefined);
-  if (!userId) return null;
-  return await getUserFromState(state, userId);
+  const state = cookies.oauth_state;
+  if (!state) return null;
+  return await getUserFromState(state, cookies.oauth_user_id || undefined);
+}
+
+/** 解析 OAuth 回调对应用户：优先 query.state，其次 cookie */
+export async function resolveOAuthCallbackUser(req: Request): Promise<User | null> {
+  const state = req.query.state;
+  const cookies = parseCookies(req.headers.cookie);
+
+  if (state) {
+    const user = await getUserFromState(state, cookies.oauth_user_id || undefined);
+    if (user) return user;
+  }
+  return getUserFromOAuthCookies(req);
 }
 
 /* ---- 路由 ---- */
@@ -74,31 +88,25 @@ router.get('/login-url', requireAuth, (req: AuthedRequest, res: Response) => {
   }
 
   const state = jwt.sign({ userId: user.id }, appConfig.jwt.secret, { expiresIn: '5m' });
-  res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
-  res.cookie('oauth_user_id', user.id, { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 });
+  const cookieOpts = { httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge: 5 * 60 * 1000 };
+  res.cookie('oauth_state', state, cookieOpts);
+  res.cookie('oauth_user_id', user.id, cookieOpts);
 
   const url = getAuthUrl(user.pingcode_client_id, state);
   res.json({ success: true, url });
 });
 
 /**
- * OAuth 回调：严格依赖 state JWT + cookie 定位用户，不再使用「取第一个配置了 client_id 的用户」兜底，
- * 避免多用户部署下越权绑定。
+ * OAuth 回调：通过已签名 state JWT（优先）或 oauth_* cookie 定位用户，
+ * 不做「取第一个配置了 client_id 的用户」兜底，避免多用户部署下越权绑定。
  */
 router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
   const code = req.query.code as string | undefined;
-  const state = req.query.state;
   if (!code) return res.status(400).send('缺少授权码');
 
   try {
-    // 严格通过 state JWT + cookie 定位用户，不做公开兜底
-    let user: User | null = null;
-    if (state) {
-      // 优先用 query 中的 state（PingCode 回传），但需与 cookie 中的 oauth_user_id 匹配
-      const cookies = parseCookies(req.headers.cookie);
-      user = await getUserFromState(state, cookies.oauth_user_id);
-    }
-    if (!user) user = await getUserFromOAuthCookies(req);
+    // 通过已签名 state JWT（及可选 oauth_* cookie）定位用户，不做「任意用户」兜底
+    const user = await resolveOAuthCallbackUser(req);
     if (!user) {
       return res.status(400).send('无法确定关联用户，请先登录本系统并重新发起 PingCode 授权。');
     }
@@ -131,8 +139,8 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
     user.domain = domain;
     await user.save();
 
-    res.clearCookie('oauth_state');
-    res.clearCookie('oauth_user_id');
+    res.clearCookie('oauth_state', { path: '/' });
+    res.clearCookie('oauth_user_id', { path: '/' });
 
     // 重定向到前端
     res.redirect(`${appConfig.frontendUrl}/dashboard?connected=true`);

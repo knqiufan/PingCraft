@@ -8,6 +8,8 @@ let pingcodeAuthExpiredShown = false
 const request = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: 30000,
+  // 跨域开发时需携带 Cookie，否则 /auth/login-url 种下的 oauth_* 无法在回调时带回
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
