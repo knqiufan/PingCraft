@@ -4,7 +4,7 @@
 
 PingCraft CLI 是面向 [PingCode](https://pingcode.com) 项目管理平台与 PingCraft 需求分析后端的命令行工具，同时可作为 **MCP Server** 接入 AI Agent，也可作为 **库** 在 Node.js 项目中直接调用 SDK。
 
-> ✅ **Phase 0–1 已完成**（tag `v0.1.0` / `v0.2.0`）：鉴权、项目、工作项核心 CRUD 与元数据查询可用。完整计划见仓库根 `docs/cli/`。
+> ✅ **Phase 0–2 已完成**（tag `v0.1.0` / `v0.2.0` / `v0.3.0`）：鉴权、项目/工作项全模块、Scrum/发布/看板/瀑布、全局个人/组织与通用资源可用。完整计划见仓库根 `docs/cli/`。
 
 ## 快速开始
 
@@ -71,6 +71,48 @@ pingcode work-item-state list --project <pid> --type <tid>
 pingcode work-item-property list --project <pid> --type <tid>
 pingcode work-item-priority list --project <pid>
 ```
+
+## 项目管理补全（Phase 2）
+
+```bash
+# 工作项子资源
+pingcode work-item comment list <id> | work-item comment add <id> --content ...
+pingcode work-item attachment upload <id> --file ./spec.md
+pingcode work-item watcher add <id> --user-id <uid>
+pingcode work-item link create <id> --target <id> --type <linkTypeId>
+pingcode work-item history <id>          # 流转/活动记录
+pingcode work-item transition <id> --state <stateId>
+pingcode work-item-link-type list
+
+# 配置中心（scheme，只读）
+pingcode scheme state --project <pid>
+pingcode scheme transition --project <pid> --type <tid>
+
+# Scrum 迭代
+pingcode sprint list --project <pid> --json
+pingcode sprint create --project <pid> --name 迭代A --start-at 2026-08-01 --end-at 2026-08-15
+pingcode sprint create-batch --project <pid> --file sprints.json   # 批量（并发+进度）
+pingcode sprint work-items <id>
+
+# 发布 / 看板 / 瀑布
+pingcode release list --project <pid> | release create ... | release stages <id>
+pingcode kanban list --project <pid> | kanban column list <id> | kanban swimlane create <id> --name ...
+pingcode waterfall work-item-types --project <pid>
+
+# 全局个人/组织
+pingcode myself --json
+pingcode user list | user create --name ... --email ...
+pingcode department list | team list | team member add <id> --user-id <uid>
+pingcode role list | position list | organization info
+
+# 全局通用资源（以 principal 锚定）
+pingcode comment list --principal-type work_item --principal-id <id>
+pingcode worklog create --workload 4 --description ...
+pingcode activity list --principal-type work_item --principal-id <id>
+pingcode log login | log audit
+```
+
+批量命令统一输入：`--file sprints.json`（JSON 数组）或 `--stdin`；`--concurrency` 控制并发（默认 3，受 200/min 限流约束）。
 
 ## 管道与输出
 

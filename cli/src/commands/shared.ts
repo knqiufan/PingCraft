@@ -8,6 +8,8 @@
  *  - `runHandler`：统一错误归一化 + stderr 机器可读输出 + 退出码
  */
 import type { Command } from 'commander';
+import fs from 'node:fs';
+import path from 'node:path';
 import { loadConfig, type ResolvedProfile } from '../core/config.js';
 import { loadCredentials, saveCredentials } from '../core/auth.js';
 import { CliError, ExitCode, ErrorCode, emitError, toCliError } from '../core/errors.js';
@@ -18,11 +20,29 @@ import {
   createProjectsModule,
   createWorkItemsModule,
   createWorkItemMetaModule,
+  createWorkItemSubResourcesModule,
+  createWorkItemSchemeModule,
+  createSprintsModule,
+  createReleasesModule,
+  createKanbansModule,
+  createWaterfallModule,
+  createDirectoryModule,
+  createCommonResourcesModule,
+  createLogsModule,
   type PingCodeClient,
   type AuthModule,
   type ProjectsModule,
   type WorkItemsModule,
   type WorkItemMetaModule,
+  type WorkItemSubResourcesModule,
+  type WorkItemSchemeModule,
+  type SprintsModule,
+  type ReleasesModule,
+  type KanbansModule,
+  type WaterfallModule,
+  type DirectoryModule,
+  type CommonResourcesModule,
+  type LogsModule,
   type TokenResponse,
 } from '../sdk/index.js';
 
@@ -86,6 +106,16 @@ export function tokenResponseToCredentials(token: TokenResponse): { accessToken:
   };
 }
 
+/** 读文件构造 FormData（Node 22 全局 FormData + Blob） */
+export function fileToFormData(filePath: string, fieldName = 'file'): FormData {
+  if (!fs.existsSync(filePath)) {
+    throw new CliError({ message: `文件不存在：${filePath}`, code: ErrorCode.ARGS, exitCode: ExitCode.ARGS });
+  }
+  const form = new FormData();
+  form.append(fieldName, new Blob([fs.readFileSync(filePath)]), path.basename(filePath));
+  return form;
+}
+
 /** 客户端装配结果 */
 export interface ClientBundle {
   profile: ResolvedProfile;
@@ -94,6 +124,15 @@ export interface ClientBundle {
   projects: ProjectsModule;
   workItems: WorkItemsModule;
   workItemMeta: WorkItemMetaModule;
+  workItemSubResources: WorkItemSubResourcesModule;
+  workItemScheme: WorkItemSchemeModule;
+  sprints: SprintsModule;
+  releases: ReleasesModule;
+  kanbans: KanbansModule;
+  waterfall: WaterfallModule;
+  directory: DirectoryModule;
+  commonResources: CommonResourcesModule;
+  logs: LogsModule;
 }
 
 /**
@@ -156,6 +195,15 @@ export function buildClient(conn: ConnectionOptions = {}): ClientBundle {
     projects: createProjectsModule(client),
     workItems: createWorkItemsModule(client),
     workItemMeta: createWorkItemMetaModule(client),
+    workItemSubResources: createWorkItemSubResourcesModule(client),
+    workItemScheme: createWorkItemSchemeModule(client),
+    sprints: createSprintsModule(client),
+    releases: createReleasesModule(client),
+    kanbans: createKanbansModule(client),
+    waterfall: createWaterfallModule(client),
+    directory: createDirectoryModule(client),
+    commonResources: createCommonResourcesModule(client),
+    logs: createLogsModule(client),
   };
 }
 

@@ -144,6 +144,33 @@ export function createWorkItemsModule(client: PingCodeClient) {
     },
 
     /**
+     * 批量更新工作项（有限并发 + onProgress + 部分失败聚合）。
+     * 每条形如 { id, ...fields }，按 id 逐条 PATCH。
+     */
+    async batchUpdate(items: Array<UpdateWorkItemBody & { id: Id }>, opts: { concurrency?: number; onProgress?: (current: number, total: number, status: 'success' | 'failed', item?: { id: Id }) => void } = {}): Promise<{ success: number; failed: number; updated: Id[]; errors: Array<{ id?: Id; error?: string }> }> {
+      const concurrency = Math.max(1, opts.concurrency ?? 3);
+      const total = items.length;
+      let completed = 0;
+      const result = { success: 0, failed: 0, updated: [] as Id[], errors: [] as Array<{ id?: Id; error?: string }> };
+      const tasks = items.map((item) => async () => {
+        const { id, ...body } = item;
+        try {
+          await client.patch(`/project/work_items/${encodeURIComponent(id)}`, body);
+          result.success++;
+          result.updated.push(id);
+          opts.onProgress?.(++completed, total, 'success', { id });
+        } catch (e) {
+          const msg = e && typeof e === 'object' && 'message' in e ? (e as { message: string }).message : String(e);
+          result.failed++;
+          result.errors.push({ id, error: msg });
+          opts.onProgress?.(++completed, total, 'failed', { id });
+        }
+      });
+      await runWithConcurrency(tasks, concurrency);
+      return result;
+    },
+
+    /**
      * 批量创建工作项（有限并发 + onProgress 回调）。
      * 复刻后端 createWorkItemsBatch：每条独立 try/catch，单条失败不中断整体。
      */

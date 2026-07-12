@@ -37,5 +37,32 @@ export type { WorkItem, WorkItemsModule, WorkItemListParams, CreateWorkItemBody,
 export { createWorkItemMetaModule } from './modules/workItemMeta.js';
 export type { WorkItemType, WorkItemState, WorkItemProperty, WorkItemPriority, WorkItemMetaModule } from './modules/workItemMeta.js';
 
+export { createWorkItemSubResourcesModule } from './modules/workItemSubResources.js';
+export type { Comment, Attachment, Watcher, WorkItemLink, Activity, Tag, WorkItemSubResourcesModule } from './modules/workItemSubResources.js';
+
+export { createWorkItemSchemeModule } from './modules/workItemScheme.js';
+export type { SchemeItem, LinkType, WorkItemSchemeModule } from './modules/workItemScheme.js';
+
+export { createSprintsModule } from './modules/sprints.js';
+export type { Sprint, CreateSprintBody, UpdateSprintBody, SprintsModule } from './modules/sprints.js';
+
+export { createReleasesModule } from './modules/releases.js';
+export type { Release, CreateReleaseBody, UpdateReleaseBody, ReleasesModule } from './modules/releases.js';
+
+export { createKanbansModule } from './modules/kanbans.js';
+export type { Kanban, KanbanColumn, KanbanSwimlane, KanbansModule } from './modules/kanbans.js';
+
+export { createWaterfallModule } from './modules/waterfall.js';
+export type { WaterfallModule } from './modules/waterfall.js';
+
+export { createDirectoryModule } from './modules/directory.js';
+export type { User, Department, Team, Role, Position, Organization, DirectoryModule } from './modules/directory.js';
+
+export { createCommonResourcesModule } from './modules/commonResources.js';
+export type { CommonResourcesModule, Principal } from './modules/commonResources.js';
+
+export { createLogsModule } from './modules/logs.js';
+export type { LogEntry, LogsModule } from './modules/logs.js';
+
 /** SDK 版本（Phase 3 抽包后单独维护） */
-export const SDK_VERSION = '0.2.0';
+export const SDK_VERSION = '0.3.0';

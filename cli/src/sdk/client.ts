@@ -58,6 +58,8 @@ export interface PingCodeClient {
   patch<T = unknown>(url: string, body?: unknown, options?: RequestOptions): Promise<T>;
   put<T = unknown>(url: string, body?: unknown, options?: RequestOptions): Promise<T>;
   delete<T = unknown>(url: string, options?: RequestOptions): Promise<T>;
+  /** multipart/form-data 上传（body 为 FormData 实例，Content-Type 由 axios 自动设置） */
+  postForm<T = unknown>(url: string, formData: FormData, options?: RequestOptions): Promise<T>;
 }
 
 const NETWORK_ERR_CODES = new Set([
@@ -178,5 +180,6 @@ export function createClient(opts: CreateClientOptions): PingCodeClient {
     patch: (url, body, options) => doRequest('PATCH', url, body, options),
     put: (url, body, options) => doRequest('PUT', url, body, options),
     delete: (url, options) => doRequest('DELETE', url, undefined, options),
+    postForm: (url, formData, options) => doRequest('POST', url, formData, options),
   };
 }

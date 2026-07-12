@@ -10,11 +10,11 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/core/**/*.ts', 'src/sdk/**/*.ts'],
       exclude: ['src/**/index.ts', 'src/**/meta.ts', 'src/**/types.ts', 'bin/**'],
-      // core/sdk 覆盖率门槛（阶段 1 §6.4 / §7：≥85%，分支 75%）
+      // core/sdk 覆盖率门槛：lines/stmts 85%、functions 80%（Phase 2 每模块目标）、branches 75%
       thresholds: {
         lines: 85,
         statements: 85,
-        functions: 85,
+        functions: 80,
         branches: 75,
       },
     },

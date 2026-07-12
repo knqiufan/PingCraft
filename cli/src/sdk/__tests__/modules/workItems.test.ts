@@ -98,4 +98,20 @@ describe('workItems 模块', () => {
     const result = await workItems.batchCreate([]);
     expect(result).toEqual({ success: 0, failed: 0, created: [], errors: [] });
   });
+
+  it('batchUpdate 并发 + 部分失败聚合', async () => {
+    mock.onPatch(/\/project\/work_items\/w/).reply((cfg) => {
+      const id = cfg.url?.split('/').pop();
+      return id === 'w2' ? [400, { message: 'bad' }] : [200, { id }];
+    });
+    const progress: Array<{ current: number; total: number; status: string }> = [];
+    const result = await workItems.batchUpdate(
+      [{ id: 'w1', title: 'A' }, { id: 'w2', title: 'B' }, { id: 'w3', title: 'C' }],
+      { concurrency: 2, onProgress: (c, t, s) => progress.push({ current: c, total: t, status: s }) },
+    );
+    expect(result.success).toBe(2);
+    expect(result.failed).toBe(1);
+    expect(result.updated).toEqual(['w1', 'w3']);
+    expect(progress).toHaveLength(3);
+  });
 });

@@ -13,13 +13,32 @@ const m = vi.hoisted(() => ({
   update: vi.fn(),
   remove: vi.fn(),
 }));
-vi.mock('../../sdk/index.js', () => ({
-  createClient: vi.fn(() => ({ axios: {}, get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), put: vi.fn() })),
-  createAuthModule: vi.fn(() => ({ getMyself: vi.fn(), buildAuthUrl: vi.fn(), getTokenByCode: vi.fn(), getTokenByClientCredentials: vi.fn(), refresh: vi.fn() })),
-  createProjectsModule: vi.fn(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), members: vi.fn() })),
-  createWorkItemsModule: vi.fn(() => m),
-  createWorkItemMetaModule: vi.fn(() => ({ types: vi.fn(), states: vi.fn(), properties: vi.fn(), priorities: vi.fn() })),
-}));
+vi.mock('../../sdk/index.js', () => {
+  const stub = () => {
+    const cache = new Map<string, ReturnType<typeof vi.fn>>();
+    return new Proxy({}, { get: (_t, key) => {
+      if (typeof key !== 'string') return undefined;
+      if (!cache.has(key)) cache.set(key, vi.fn(async () => ({ values: [], total: 0 })));
+      return cache.get(key);
+    } });
+  };
+  return {
+    createClient: vi.fn(() => ({ axios: {}, get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), put: vi.fn(), postForm: vi.fn() })),
+    createAuthModule: vi.fn(() => stub()),
+    createProjectsModule: vi.fn(() => stub()),
+    createWorkItemsModule: vi.fn(() => m),
+    createWorkItemMetaModule: vi.fn(() => stub()),
+    createWorkItemSubResourcesModule: vi.fn(() => stub()),
+    createWorkItemSchemeModule: vi.fn(() => stub()),
+    createSprintsModule: vi.fn(() => stub()),
+    createReleasesModule: vi.fn(() => stub()),
+    createKanbansModule: vi.fn(() => stub()),
+    createWaterfallModule: vi.fn(() => stub()),
+    createDirectoryModule: vi.fn(() => stub()),
+    createCommonResourcesModule: vi.fn(() => stub()),
+    createLogsModule: vi.fn(() => stub()),
+  };
+});
 
 function tmpFile() {
   return path.join(os.tmpdir(), `pingcode-cmd-wi-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
