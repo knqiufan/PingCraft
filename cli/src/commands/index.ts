@@ -21,6 +21,9 @@ import { registerCommonCommands } from './common.js';
 import { registerWikiCommands } from './wiki.js';
 import { registerMcpCommands } from './mcp.js';
 import { registerPingcraftCommands } from './pingcraft.js';
+import { registerProductCommands } from './product.js';
+import { registerTicketCommands } from './ticket.js';
+import { registerTesthubCommands } from './testhub.js';
 
 /** 将所有命令注册到给定 program */
 export function registerCommands(program: Command): void {
@@ -41,6 +44,9 @@ export function registerCommands(program: Command): void {
   registerWikiCommands(program);
   registerMcpCommands(program);
   registerPingcraftCommands(program);
+  registerProductCommands(program);
+  registerTicketCommands(program);
+  registerTesthubCommands(program);
 }
 
 export { CAPABILITIES } from './capabilities.js';

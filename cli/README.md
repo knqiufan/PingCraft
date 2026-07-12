@@ -4,7 +4,7 @@
 
 PingCraft CLI 是面向 [PingCode](https://pingcode.com) 项目管理平台与 PingCraft 需求分析后端的命令行工具，同时可作为 **MCP Server** 接入 AI Agent，也可作为 **库** 在 Node.js 项目中直接调用 SDK。
 
-> ✅ **Phase 0–3 已完成**（tag `v0.1.0`–`v0.4.0`）：鉴权、项目/工作项全模块、Scrum/发布/看板/瀑布、全局资源、Wiki、MCP Server、PingCraft 业务可用。共享 SDK 抽包待专用 PR。完整计划见仓库根 `docs/cli/`。
+> ✅ **Phase 0–4 已完成**（tag `v0.1.0`–`v0.5.0`）：鉴权、项目/工作项、Scrum/发布/看板/瀑布、全局资源、Wiki、MCP Server、PingCraft 业务、产品管理（产品/客户/工单/需求）、测试管理（库/用例/计划/执行）可用。共享 SDK 抽包待专用 PR。完整计划见仓库根 `docs/cli/`。
 
 ## 快速开始
 

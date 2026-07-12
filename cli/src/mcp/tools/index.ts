@@ -15,6 +15,53 @@ export function registerAllTools(): void {
   registerMetaTools();
   registerWikiTools();
   registerMyselfTool();
+  registerProductTools();
+  registerTesthubTools();
+}
+
+function registerProductTools(): void {
+  registerTool({
+    name: 'product__list',
+    description: '列出产品',
+    inputSchema: z.object({}),
+    tier: 'optional',
+    async handler(_args, { bundle }) {
+      const { values } = await bundle.products.list();
+      return values;
+    },
+  });
+  registerTool({
+    name: 'ticket__create',
+    description: '创建工单',
+    inputSchema: z.object({ product_id: z.string(), title: z.string() }),
+    tier: 'optional',
+    dangerous: true,
+    async handler(args, { bundle }) {
+      return bundle.tickets.create({ product_id: args.product_id, title: args.title });
+    },
+  });
+}
+
+function registerTesthubTools(): void {
+  registerTool({
+    name: 'test-case__list',
+    description: '列出测试用例',
+    inputSchema: z.object({ library_id: z.string().optional() }),
+    tier: 'optional',
+    async handler(args, { bundle }) {
+      const { values } = await bundle.testCases.list(args.library_id ? { library_id: args.library_id } : {});
+      return values;
+    },
+  });
+  registerTool({
+    name: 'test-execution__result',
+    description: '查询测试执行结果',
+    inputSchema: z.object({ id: z.string() }),
+    tier: 'optional',
+    async handler(args, { bundle }) {
+      return bundle.testExecutions.result(args.id as string);
+    },
+  });
 }
 
 function registerProjectTools(): void {

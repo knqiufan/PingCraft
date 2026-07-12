@@ -32,6 +32,15 @@ import {
   createCommonResourcesModule,
   createLogsModule,
   createWikiModule,
+  createProductsModule,
+  createCustomersModule,
+  createTicketsModule,
+  createRequirementsModule,
+  createTestLibraryModule,
+  createTestCasesModule,
+  createTestPlansModule,
+  createTestExecutionsModule,
+  createTestConfigModule,
   type PingCodeClient,
   type AuthModule,
   type ProjectsModule,
@@ -47,6 +56,15 @@ import {
   type CommonResourcesModule,
   type LogsModule,
   type WikiModule,
+  type ProductsModule,
+  type CustomersModule,
+  type TicketsModule,
+  type RequirementsModule,
+  type TestLibraryModule,
+  type TestCasesModule,
+  type TestPlansModule,
+  type TestExecutionsModule,
+  type TestConfigModule,
   type TokenResponse,
 } from '../sdk/index.js';
 
@@ -139,6 +157,15 @@ export interface ClientBundle {
   commonResources: CommonResourcesModule;
   logs: LogsModule;
   wiki: WikiModule;
+  products: ProductsModule;
+  customers: CustomersModule;
+  tickets: TicketsModule;
+  requirements: RequirementsModule;
+  testLibrary: TestLibraryModule;
+  testCases: TestCasesModule;
+  testPlans: TestPlansModule;
+  testExecutions: TestExecutionsModule;
+  testConfig: TestConfigModule;
 }
 
 /**
@@ -211,6 +238,15 @@ export function buildClient(conn: ConnectionOptions = {}): ClientBundle {
     commonResources: createCommonResourcesModule(client),
     logs: createLogsModule(client),
     wiki: createWikiModule(client),
+    products: createProductsModule(client),
+    customers: createCustomersModule(client),
+    tickets: createTicketsModule(client),
+    requirements: createRequirementsModule(client),
+    testLibrary: createTestLibraryModule(client),
+    testCases: createTestCasesModule(client),
+    testPlans: createTestPlansModule(client),
+    testExecutions: createTestExecutionsModule(client),
+    testConfig: createTestConfigModule(client),
   };
 }
 

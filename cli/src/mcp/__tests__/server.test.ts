@@ -35,6 +35,15 @@ function mockBundle(overrides: Record<string, unknown> = {}): ClientBundle {
     commonResources: stub() as never,
     logs: stub() as never,
     wiki: (overrides.wiki as never) ?? stub(),
+    products: stub() as never,
+    customers: stub() as never,
+    tickets: stub() as never,
+    requirements: stub() as never,
+    testLibrary: stub() as never,
+    testCases: stub() as never,
+    testPlans: stub() as never,
+    testExecutions: stub() as never,
+    testConfig: stub() as never,
   };
 }
 

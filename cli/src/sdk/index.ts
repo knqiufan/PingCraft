@@ -72,5 +72,17 @@ export type { PingcraftClient, PingcraftClientOptions, SseEvent } from './pingcr
 export { createPingcraftApi, runOrchestrator } from './pingcraft/index.js';
 export type { PingcraftApi, LoginResult, AnalyzeResult, ImportStreamHandlers, RunOrchestratorParams } from './pingcraft/index.js';
 
+export { createProductsModule } from './modules/products.js';
+export type { Product, ProductsModule } from './modules/products.js';
+export { createCustomersModule } from './modules/customers.js';
+export type { Customer, ExternalUser, CustomersModule } from './modules/customers.js';
+export { createTicketsModule } from './modules/tickets.js';
+export type { Ticket, TicketsModule } from './modules/tickets.js';
+export { createRequirementsModule } from './modules/requirements.js';
+export type { Requirement, RequirementsModule } from './modules/requirements.js';
+export { createTestLibraryModule, createTestCasesModule, createTestPlansModule, createTestExecutionsModule, createTestConfigModule } from './modules/testhub.js';
+export type { TestLibrary, TestCase, TestPlan, TestExecution, TestLibraryModule, TestCasesModule, TestPlansModule, TestExecutionsModule, TestConfigModule } from './modules/testhub.js';
+export { createCrud, createListOnly } from './modules/_crud.js';
+
 /** SDK 版本（Phase 3 抽包后单独维护） */
-export const SDK_VERSION = '0.4.0';
+export const SDK_VERSION = '0.5.0';
