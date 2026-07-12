@@ -44,6 +44,9 @@ function mockBundle(overrides: Record<string, unknown> = {}): ClientBundle {
     testPlans: stub() as never,
     testExecutions: stub() as never,
     testConfig: stub() as never,
+    scm: stub() as never,
+    build: stub() as never,
+    delivery: stub() as never,
   };
 }
 

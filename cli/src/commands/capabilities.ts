@@ -55,9 +55,9 @@ export const CAPABILITIES: readonly Capability[] = [
   { command: 'test-case', description: '测试用例（含批量/关联工作项）', phase: '4', status: 'available' },
   { command: 'test-plan', description: '测试计划管理', phase: '4', status: 'available' },
   { command: 'test-execution', description: '测试执行（含批量/结果）', phase: '4', status: 'available' },
-  { command: 'scm', description: '源代码管理', phase: '5', status: 'planned' },
-  { command: 'build', description: '构建管理', phase: '5', status: 'planned' },
-  { command: 'delivery', description: '交付管理', phase: '5', status: 'planned' },
+  { command: 'scm', description: '源代码管理（DevOps）', phase: '5', status: 'available' },
+  { command: 'build', description: '构建管理（DevOps）', phase: '5', status: 'available' },
+  { command: 'delivery', description: '交付管理（DevOps）', phase: '5', status: 'available' },
 ] as const;
 
 /** 将能力列表渲染为对齐的纯文本表格（无外部依赖） */

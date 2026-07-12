@@ -19,8 +19,8 @@ export function createRequirementsModule(client: PingCodeClient) {
   const metaList = async (path: string) => extractList<unknown>((await client.get(path)) as never);
   return {
     ...crud,
-    async transition(id: Id, stateId: Id) {
-      return client.patch(`/product/requirements/${encodeURIComponent(id)}`, { state_id: stateId });
+    async transition(id: Id, stateId: Id): Promise<Requirement> {
+      return client.patch<Requirement>(`/product/requirements/${encodeURIComponent(id)}`, { state_id: stateId });
     },
     async states() {
       return metaList('/product/requirement/states');

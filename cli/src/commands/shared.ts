@@ -41,6 +41,9 @@ import {
   createTestPlansModule,
   createTestExecutionsModule,
   createTestConfigModule,
+  createScmModule,
+  createBuildModule,
+  createDeliveryModule,
   type PingCodeClient,
   type AuthModule,
   type ProjectsModule,
@@ -65,6 +68,9 @@ import {
   type TestPlansModule,
   type TestExecutionsModule,
   type TestConfigModule,
+  type ScmModule,
+  type BuildModule,
+  type DeliveryModule,
   type TokenResponse,
 } from '../sdk/index.js';
 
@@ -166,6 +172,9 @@ export interface ClientBundle {
   testPlans: TestPlansModule;
   testExecutions: TestExecutionsModule;
   testConfig: TestConfigModule;
+  scm: ScmModule;
+  build: BuildModule;
+  delivery: DeliveryModule;
 }
 
 /**
@@ -247,6 +256,9 @@ export function buildClient(conn: ConnectionOptions = {}): ClientBundle {
     testPlans: createTestPlansModule(client),
     testExecutions: createTestExecutionsModule(client),
     testConfig: createTestConfigModule(client),
+    scm: createScmModule(client),
+    build: createBuildModule(client),
+    delivery: createDeliveryModule(client),
   };
 }
 

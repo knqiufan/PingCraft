@@ -24,6 +24,7 @@ import { registerPingcraftCommands } from './pingcraft.js';
 import { registerProductCommands } from './product.js';
 import { registerTicketCommands } from './ticket.js';
 import { registerTesthubCommands } from './testhub.js';
+import { registerDevopsCommands } from './devops.js';
 
 /** 将所有命令注册到给定 program */
 export function registerCommands(program: Command): void {
@@ -47,6 +48,7 @@ export function registerCommands(program: Command): void {
   registerProductCommands(program);
   registerTicketCommands(program);
   registerTesthubCommands(program);
+  registerDevopsCommands(program);
 }
 
 export { CAPABILITIES } from './capabilities.js';

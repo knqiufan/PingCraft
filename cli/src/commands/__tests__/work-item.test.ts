@@ -47,6 +47,9 @@ vi.mock('../../sdk/index.js', () => {
     createTestPlansModule: vi.fn(() => stub()),
     createTestExecutionsModule: vi.fn(() => stub()),
     createTestConfigModule: vi.fn(() => stub()),
+    createScmModule: vi.fn(() => stub()),
+    createBuildModule: vi.fn(() => stub()),
+    createDeliveryModule: vi.fn(() => stub()),
   };
 });
 

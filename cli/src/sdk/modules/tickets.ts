@@ -19,8 +19,8 @@ export function createTicketsModule(client: PingCodeClient) {
   const metaList = async (path: string) => extractList<unknown>((await client.get(path)) as never);
   return {
     ...crud,
-    async transition(id: Id, stateId: Id) {
-      return client.patch(`/product/tickets/${encodeURIComponent(id)}`, { state_id: stateId });
+    async transition(id: Id, stateId: Id): Promise<Ticket> {
+      return client.patch<Ticket>(`/product/tickets/${encodeURIComponent(id)}`, { state_id: stateId });
     },
     async types() {
       return metaList('/product/ticket/types');

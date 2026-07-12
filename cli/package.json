@@ -1,8 +1,8 @@
 {
   "name": "@pingcraft/cli",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Agent-first CLI for PingCode + PingCraft",
+  "description": "Agent-first CLI for PingCode + PingCraft (CLI / MCP Server / library)",
   "license": "MIT",
   "bin": {
     "pingcode": "./bin/pingcode.js"
@@ -12,6 +12,11 @@
     ".": "./dist/index.js",
     "./sdk": "./dist/sdk/index.js"
   },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.build.json",
@@ -19,11 +24,24 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "coverage:check": "node scripts/check-coverage.mjs",
+    "prepublishOnly": "tsc -p tsconfig.build.json && vitest run"
   },
   "engines": {
     "node": ">=22.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "pingcode",
+    "cli",
+    "mcp",
+    "agent",
+    "project-management",
+    "sdk"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axios": "^1.13.5",

@@ -84,5 +84,8 @@ export { createTestLibraryModule, createTestCasesModule, createTestPlansModule, 
 export type { TestLibrary, TestCase, TestPlan, TestExecution, TestLibraryModule, TestCasesModule, TestPlansModule, TestExecutionsModule, TestConfigModule } from './modules/testhub.js';
 export { createCrud, createListOnly } from './modules/_crud.js';
 
+export { createScmModule, createBuildModule, createDeliveryModule } from './modules/devops.js';
+export type { ScmModule, BuildModule, DeliveryModule, ScmHost, ScmRepository, ScmPullRequest, BuildRecord, DeliveryEnvironment, DeliveryDeployment } from './modules/devops.js';
+
 /** SDK 版本（Phase 3 抽包后单独维护） */
-export const SDK_VERSION = '0.5.0';
+export const SDK_VERSION = '1.0.0';
