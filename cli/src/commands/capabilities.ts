@@ -29,9 +29,13 @@ export interface Capability {
  */
 export const CAPABILITIES: readonly Capability[] = [
   { command: 'capabilities', description: '查看 CLI 能力清单（自描述）', phase: '0', status: 'available' },
-  { command: 'auth', description: '认证与凭证管理（login/whoami/logout）', phase: '1', status: 'planned' },
-  { command: 'project', description: '项目管理（list/get/create）', phase: '1', status: 'planned' },
-  { command: 'work-item', description: '工作项核心 CRUD', phase: '1', status: 'planned' },
+  { command: 'auth', description: '认证与凭证管理（login/token/refresh/whoami/logout/status）', phase: '1', status: 'available' },
+  { command: 'project', description: '项目管理（list/get/create/update/delete/members）', phase: '1', status: 'available' },
+  { command: 'work-item', description: '工作项核心 CRUD（list/get/create/update/delete）', phase: '1', status: 'available' },
+  { command: 'work-item-type', description: '工作项类型元数据', phase: '1', status: 'available' },
+  { command: 'work-item-state', description: '工作项状态元数据', phase: '1', status: 'available' },
+  { command: 'work-item-property', description: '工作项属性元数据', phase: '1', status: 'available' },
+  { command: 'work-item-priority', description: '工作项优先级元数据', phase: '1', status: 'available' },
   { command: 'config', description: '配置中心与多 profile', phase: '2', status: 'planned' },
   { command: 'sprint', description: '迭代管理', phase: '2', status: 'planned' },
   { command: 'release', description: '版本管理', phase: '2', status: 'planned' },

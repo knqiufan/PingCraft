@@ -6,12 +6,17 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts', 'src/**/__tests__/**/*.test.ts'],
-    // Phase 0 不设硬阈值（骨架文件占多数）。
-    // Phase 1 起开启：coverage.thresholds.lines = 80
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/index.ts', 'src/**/meta.ts', 'bin/**']
-    }
-  }
+      include: ['src/core/**/*.ts', 'src/sdk/**/*.ts'],
+      exclude: ['src/**/index.ts', 'src/**/meta.ts', 'src/**/types.ts', 'bin/**'],
+      // core/sdk 覆盖率门槛（阶段 1 §6.4 / §7：≥85%，分支 75%）
+      thresholds: {
+        lines: 85,
+        statements: 85,
+        functions: 85,
+        branches: 75,
+      },
+    },
+  },
 });

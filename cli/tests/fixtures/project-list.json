@@ -1,0 +1,25 @@
+{
+  "values": [
+    {
+      "id": "p1",
+      "name": "PingCraft",
+      "identifier": "PC",
+      "type": "scrum",
+      "visibility": "open",
+      "status": "active",
+      "created_at": 1718236800,
+      "updated_at": 1718236800
+    },
+    {
+      "id": "p2",
+      "name": "Infrastructure",
+      "identifier": "INFRA",
+      "type": "kanban",
+      "visibility": "private",
+      "status": "active",
+      "created_at": 1718236800,
+      "updated_at": 1718236800
+    }
+  ],
+  "total": 2
+}

@@ -1,0 +1,6 @@
+{
+  "values": [
+    { "id": "w3", "identifier": "PC-3", "title": "完善文档", "project_id": "p1", "work_item_type_id": "t1", "state_id": "s1" }
+  ],
+  "total": 3
+}

@@ -1,0 +1,7 @@
+{
+  "values": [
+    { "id": "w1", "identifier": "PC-1", "title": "实现登录", "project_id": "p1", "work_item_type_id": "t1", "state_id": "s1" },
+    { "id": "w2", "identifier": "PC-2", "title": "接入鉴权", "project_id": "p1", "work_item_type_id": "t1", "state_id": "s2" }
+  ],
+  "total": 3
+}

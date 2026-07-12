@@ -1,7 +1,13 @@
 /**
  * core 层聚合导出（L1 核心运行时）。
  *
- * Phase 0 仅含 meta；Phase 1 起逐步补充 config / auth / output / errors / pagination。
+ * config / auth / output / errors / pagination —— 命令层与库模式的统一底座。
  */
 export { meta } from './meta.js';
 export type { CliMeta } from './meta.js';
+
+export * from './errors.js';
+export * from './pagination.js';
+export * from './config.js';
+export * from './auth.js';
+export * from './output.js';

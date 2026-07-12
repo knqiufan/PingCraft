@@ -23,7 +23,10 @@ export function createProgram(): Command {
     .name(meta.name)
     .description(meta.description)
     // --version 输出 `pingcode/0.1.0` 形式
-    .version(VERSION_STRING, '-V, --version', `输出 ${meta.name} 的版本号`);
+    .version(VERSION_STRING, '-V, --version', `输出 ${meta.name} 的版本号`)
+    // 全局连接选项：在子命令前使用，如 `pingcode --profile prod project list`
+    .option('--profile <name>', '使用指定 profile（覆盖 default_profile / 环境变量）')
+    .option('--host <url>', 'PingCode 开放平台地址（覆盖配置/环境变量）');
   registerCommands(program);
   return program;
 }
