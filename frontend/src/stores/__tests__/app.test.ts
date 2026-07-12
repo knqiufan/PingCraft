@@ -107,7 +107,18 @@ describe('useAppStore', () => {
       const file = new File(['content'], 'test.txt')
       await store.uploadAndAnalyze(file)
 
-      expect(store.requirements).toEqual([{ id: '1', title: 'Req 1' }])
+      expect(store.requirements).toEqual([
+        {
+          id: '1',
+          title: 'Req 1',
+          priority: 'Medium',
+          priority_id: 'Medium',
+          state_id: 'new',
+          state: '待办',
+          type_id: 'story',
+          assignee_name: null,
+        },
+      ])
       expect(store.analyzing).toBe(false)
     })
   })

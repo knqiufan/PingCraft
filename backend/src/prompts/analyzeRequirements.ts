@@ -51,6 +51,11 @@ export const ANALYZE_REQUIREMENTS_PROMPT = `你是一位专业的项目管理助
   - 若文档中明确指派了人员，提取姓名
   - 若未明确指派，返回 null（系统将默认为当前用户）
 
+- **state** (string | null): 工作项状态名称（可选）
+  - 仅当需求文档中**明确标注**了状态时才提取，例如："待办"、"新建"、"进行中"、"已完成"、"已关闭"等
+  - 若文档未提及状态，必须返回 null（系统将默认填入「待办」）
+  - 不要猜测或凭空编造状态；不要输出状态 ID
+
 - **solution_suggestion** (string): 解决方案建议
   - 根据工作项类型提供具体的实施建议
   - 对于 story/feature：提供开发建议、技术选型建议、实现步骤
@@ -75,7 +80,8 @@ export const ANALYZE_REQUIREMENTS_PROMPT = `你是一位专业的项目管理助
 4. **工时评估**: 考虑技术复杂度、团队熟悉度、潜在风险等因素
 5. **完整性**: 确保提取所有明确的需求点，不遗漏关键信息
 6. **负责人识别**: 注意文档中的"由XXX负责"、"XXX负责"等表述
-7. **解决方案**: 提供专业、具体、可执行的解决方案建议
+7. **状态识别**: 仅提取文档明确写出的状态；未写明则 state 填 null
+8. **解决方案**: 提供专业、具体、可执行的解决方案建议
 
 ## 解决方案建议示例
 
@@ -121,6 +127,7 @@ export const ANALYZE_REQUIREMENTS_PROMPT = `你是一位专业的项目管理助
     "start_at": "{current_time}",
     "type_id": "story",
     "assignee_name": null,
+    "state": null,
     "solution_suggestion": "1. 设计注册接口（支持邮箱/手机号）\\n2. 使用 bcrypt 加密密码\\n3. 集成邮件/短信服务发送验证码\\n4. 前端表单实现与验证\\n5. 实现防重复提交机制\\n6. 添加注册后自动登录功能"
   }},
   {{
@@ -132,6 +139,7 @@ export const ANALYZE_REQUIREMENTS_PROMPT = `你是一位专业的项目管理助
     "start_at": "{current_time}",
     "type_id": "story",
     "assignee_name": "张三",
+    "state": "进行中",
     "solution_suggestion": "1. 实现本地登录接口（邮箱/手机号+密码）\\n2. 集成微信/支付宝 OAuth2.0\\n3. 使用 JWT 生成访问令牌和刷新令牌\\n4. 前端实现登录表单和第三方登录按钮\\n5. 实现令牌自动刷新和过期处理\\n6. 添加记住密码功能（持久化刷新令牌）"
   }},
   {{
@@ -143,6 +151,7 @@ export const ANALYZE_REQUIREMENTS_PROMPT = `你是一位专业的项目管理助
     "start_at": "{current_time}",
     "type_id": "task",
     "assignee_name": null,
+    "state": null,
     "solution_suggestion": "1. 分析慢查询 SQL，在关键字段添加索引\\n2. 实现分页查询（limit/offset）\\n3. 使用 Redis 缓存热点数据\\n4. 考虑使用游标分页替代 offset\\n5. 添加数据库查询性能监控"
   }}
 ]

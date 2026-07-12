@@ -39,9 +39,15 @@
             <div class="info-item">
               <span class="info-label">优先级</span>
               <span class="info-value">
-                <el-tag :type="getPriorityType(item.priority)" size="small" effect="plain">
-                  {{ getPriorityLabel(item.priority) }}
+                <el-tag :type="getPriorityType(displayPriority)" size="small" effect="plain">
+                  {{ getPriorityLabel(displayPriority) }}
                 </el-tag>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">状态</span>
+              <span class="info-value">
+                <el-tag size="small" effect="plain">{{ getStateLabel(item.state_id, item.state) }}</el-tag>
               </span>
             </div>
             <div class="info-item">
@@ -103,10 +109,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Close, Edit, Promotion } from '@element-plus/icons-vue'
 import type { WorkItem } from '@/api/types'
 import { useWorkItemMeta } from './composables/useWorkItemMeta'
 import MatchStatusTag from './MatchStatusTag.vue'
+import { priorityIdToText } from '@/utils/workItemFields'
+import { useAppStore } from '@/stores/app'
 
 const props = defineProps<{
   visible: boolean
@@ -119,7 +128,18 @@ const emit = defineEmits<{
   (e: 'edit', item: WorkItem): void
 }>()
 
-const { getTypeLabel, getPriorityLabel, formatDate } = useWorkItemMeta()
+const appStore = useAppStore()
+const { getTypeLabel, getPriorityLabel, getStateLabel, formatDate } = useWorkItemMeta()
+
+/** 统一用 priority_id 优先展示，与列表下拉保持一致 */
+const displayPriority = computed(() => {
+  const item = props.item
+  if (!item) return ''
+  if (item.priority_id) {
+    return priorityIdToText(item.priority_id, appStore.workItemPriorities)
+  }
+  return item.priority
+})
 
 /** 根据优先级返回对应的 tag 类型 */
 function getPriorityType(priority?: string): '' | 'success' | 'warning' | 'danger' | 'info' {

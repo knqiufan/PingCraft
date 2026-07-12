@@ -23,7 +23,12 @@
         />
       </el-form-item>
       <el-form-item label="类型">
-        <el-select v-model="formData.type_id" placeholder="请选择类型" style="width: 100%">
+        <el-select
+          v-model="formData.type_id"
+          placeholder="请选择类型"
+          style="width: 100%"
+          @change="handleTypeChange"
+        >
           <el-option
             v-for="t in dynamicTypeOptions"
             :key="t.value"
@@ -33,12 +38,22 @@
         </el-select>
       </el-form-item>
       <el-form-item label="优先级">
-        <el-select v-model="formData.priority" placeholder="请选择优先级" style="width: 100%">
+        <el-select v-model="formData.priority_id" placeholder="请选择优先级" style="width: 100%">
           <el-option
             v-for="p in dynamicPriorityOptions"
             :key="p.value"
             :label="p.label"
             :value="p.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-select v-model="formData.state_id" placeholder="请选择状态" style="width: 100%">
+          <el-option
+            v-for="s in stateOptions"
+            :key="s.id"
+            :label="s.name"
+            :value="s.id"
           />
         </el-select>
       </el-form-item>
@@ -80,16 +95,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { WorkItem } from '@/api/types'
 import { useWorkItemMeta } from './composables/useWorkItemMeta'
+import { priorityIdToText, resolveStateId, resolveStateLabel } from '@/utils/workItemFields'
+import { useAppStore } from '@/stores/app'
 
-const { dynamicTypeOptions, dynamicPriorityOptions } = useWorkItemMeta()
+const { dynamicTypeOptions, dynamicPriorityOptions, effectiveStatesForType } = useWorkItemMeta()
+const appStore = useAppStore()
 
 const props = defineProps<{
   visible: boolean
   item: WorkItem | null
+  defaultAssignee?: string
 }>()
 
 const emit = defineEmits<{
@@ -99,18 +118,31 @@ const emit = defineEmits<{
 
 const formData = ref<WorkItem | null>(null)
 
-// 监听 item 变化，深拷贝数据
+const stateOptions = computed(() => effectiveStatesForType(formData.value?.type_id))
+
+function buildFormData(item: WorkItem): WorkItem {
+  return {
+    ...item,
+    priority_id: item.priority_id || item.priority,
+    assignee_name: item.assignee_name || props.defaultAssignee || null,
+    state_id:
+      item.state_id ||
+      resolveStateId(undefined, item.type_id, appStore.workItemStates, item.state),
+  }
+}
+
 watch(
   () => props.item,
   (newItem) => {
-    if (newItem) {
-      formData.value = { ...newItem }
-    } else {
-      formData.value = null
-    }
+    formData.value = newItem ? buildFormData(newItem) : null
   },
   { immediate: true }
 )
+
+function handleTypeChange(typeId: string) {
+  if (!formData.value) return
+  formData.value.state_id = resolveStateId(undefined, typeId, appStore.workItemStates, formData.value.state)
+}
 
 function handleClose() {
   emit('update:visible', false)
@@ -122,6 +154,13 @@ function handleSave() {
     ElMessage.warning('标题不能为空')
     return
   }
+  const priority_id = formData.value.priority_id
+  formData.value.priority = priorityIdToText(priority_id, appStore.workItemPriorities)
+  formData.value.state = resolveStateLabel(
+    formData.value.state_id,
+    null,
+    appStore.workItemStates
+  )
   emit('save', formData.value)
   handleClose()
 }

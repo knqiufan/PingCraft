@@ -65,13 +65,29 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="负责人" width="100" align="center">
+        <el-table-column label="负责人" width="120" align="center">
           <template #default="{ row }">
-            <span class="assignee-text">{{ row.assignee_name || defaultAssignee || '-' }}</span>
+            <el-input
+              :model-value="row.assignee_name || defaultAssignee || ''"
+              size="small"
+              placeholder="负责人"
+              class="cell-input"
+              @change="(v: string) => handleRowFieldChange(row, 'assignee_name', v)"
+            />
           </template>
         </el-table-column>
-        <el-table-column label="预估工时" width="100" align="center">
-          <template #default="{ row }">{{ row.estimated_hours }}h</template>
+        <el-table-column label="预估工时" width="110" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              :model-value="row.estimated_hours"
+              :min="0"
+              :step="1"
+              size="small"
+              controls-position="right"
+              class="cell-hours"
+              @change="(v: number | undefined) => handleHoursChange(row, v)"
+            />
+          </template>
         </el-table-column>
         <el-table-column label="开始时间" width="110" align="center">
           <template #default="{ row }">{{ formatDate(row.start_at) }}</template>
@@ -114,7 +130,7 @@ const emit = defineEmits<{
   (e: 'detail', item: WorkItem): void
   (e: 'edit', item: WorkItem): void
   (e: 'remove', id: string): void
-  (e: 'updateRow', row: WorkItem, field: keyof WorkItem, value: string): void
+  (e: 'updateRow', row: WorkItem, field: keyof WorkItem, value: string | number): void
 }>()
 
 const {
@@ -139,6 +155,10 @@ const groupedItems = computed(() => {
 
 function handleRowFieldChange(row: WorkItem, field: keyof WorkItem, value: string) {
   emit('updateRow', row, field, value)
+}
+
+function handleHoursChange(row: WorkItem, value: number | undefined) {
+  emit('updateRow', row, 'estimated_hours', value ?? 0)
 }
 </script>
 
@@ -175,12 +195,17 @@ function handleRowFieldChange(row: WorkItem, field: keyof WorkItem, value: strin
   width: 100%;
 }
 
-.cell-select {
+.cell-select,
+.cell-input {
   width: 100%;
 }
 
-.assignee-text {
-  font-size: $font-size-sm;
-  color: $text-secondary;
+.cell-hours {
+  width: 100%;
+
+  :deep(.el-input__wrapper) {
+    padding-left: 8px;
+    padding-right: 28px;
+  }
 }
 </style>

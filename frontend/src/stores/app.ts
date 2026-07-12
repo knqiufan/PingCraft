@@ -26,6 +26,13 @@ import {
 import { analyzeFile } from '@/api/analyze'
 import { restoreFromRecord } from '@/api/records'
 import { ElMessage } from 'element-plus'
+import {
+  enrichWorkItems,
+  priorityIdToText,
+  resolvePriorityId,
+  resolveStateId,
+  resolveStateLabel,
+} from '@/utils/workItemFields'
 
 export const useAppStore = defineStore('app', () => {
   /* ---- state ---- */
@@ -49,6 +56,23 @@ export const useAppStore = defineStore('app', () => {
   const workItemProperties = ref<WorkItemPropertyMeta[]>([])
   const pingcodeUserInfo = ref<PingCodeUserInfo | null>(null)
   const metadataOverview = ref<MetadataOverview | null>(null)
+
+  /* ---- helpers ---- */
+
+  /** 用当前元数据对齐 requirements 的 type_id / priority_id / state_id */
+  function enrichRequirements() {
+    if (!requirements.value.length) return
+    const defaultAssignee = pingcodeUserInfo.value?.display_name || null
+    requirements.value = enrichWorkItems(requirements.value, {
+      types: workItemTypes.value,
+      priorities: workItemPriorities.value,
+      states: workItemStates.value,
+    }).map((item) => ({
+      ...item,
+      // 列表展示过的默认负责人落到真实字段，避免编辑弹窗空白、导入缺人
+      assignee_name: item.assignee_name || defaultAssignee,
+    }))
+  }
 
   /* ---- actions ---- */
 
@@ -112,11 +136,13 @@ export const useAppStore = defineStore('app', () => {
       workItemStates.value = statesRes.data ?? []
       workItemProperties.value = propsRes.data ?? []
       workItemPriorities.value = prioRes.data ?? []
+      enrichRequirements()
     } catch {
       workItemTypes.value = []
       workItemStates.value = []
       workItemProperties.value = []
       workItemPriorities.value = []
+      enrichRequirements()
     }
   }
 
@@ -149,6 +175,7 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await analyzeFile(formData)
       requirements.value = res.data || []
+      enrichRequirements()
       // 保存导入记录 ID，用于后续导入时更新记录状态
       currentRecordId.value = res.record_id
       await autoMatchProject()
@@ -190,6 +217,7 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await checkDuplicates(requirements.value, selectedProjectId.value)
       requirements.value = res.data?.items || requirements.value
+      enrichRequirements()
     } catch {
       // 错误已由拦截器处理
     }
@@ -204,7 +232,35 @@ export const useAppStore = defineStore('app', () => {
   function updateRequirement(index: number, patch: Partial<WorkItem>) {
     if (index < 0 || index >= requirements.value.length) return
     const current = requirements.value[index]
-    requirements.value[index] = { ...current, ...patch } as WorkItem
+    if (!current) return
+    const next: WorkItem = { ...current, ...patch }
+
+    // 列表改 priority_id 时同步文本 priority，保证详情/编辑一致
+    if (patch.priority_id !== undefined) {
+      next.priority = priorityIdToText(patch.priority_id, workItemPriorities.value)
+    } else if (patch.priority !== undefined && patch.priority_id === undefined) {
+      next.priority_id = resolvePriorityId(next.priority_id, patch.priority, workItemPriorities.value)
+    }
+
+    // 切换类型后，若当前状态不属于该类型则重置为默认待办
+    if (patch.type_id !== undefined && patch.state_id === undefined) {
+      const scopedOk = workItemStates.value.some(
+        (s) =>
+          s.id === next.state_id &&
+          (!s.work_item_type_id || s.work_item_type_id === patch.type_id)
+      )
+      if (!scopedOk) {
+        next.state_id = resolveStateId(undefined, patch.type_id, workItemStates.value, next.state)
+        next.state = resolveStateLabel(next.state_id, next.state, workItemStates.value)
+      }
+    }
+
+    // 改 state_id 时同步可读状态名
+    if (patch.state_id !== undefined) {
+      next.state = resolveStateLabel(patch.state_id, null, workItemStates.value)
+    }
+
+    requirements.value[index] = next
   }
 
   /** 批量导入到 PingCode（使用 SSE 实时进度） */
@@ -269,6 +325,7 @@ export const useAppStore = defineStore('app', () => {
         return
       }
       requirements.value = data.requirements
+      enrichRequirements()
       currentRecordId.value = data.record_id
 
       if (data.target_project_id) {

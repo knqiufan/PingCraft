@@ -110,13 +110,14 @@
     <WorkItemEditDialog
       v-model:visible="editDialogVisible"
       :item="editItem"
+      :default-assignee="appStore.pingcodeUserInfo?.display_name"
       @save="handleSaveEdit"
     />
 
     <!-- 工作项详情抽屉 -->
     <WorkItemDetailDrawer
       v-model:visible="detailDrawerVisible"
-      :item="detailItem"
+      :item="liveDetailItem"
       :default-assignee="appStore.pingcodeUserInfo?.display_name"
       @edit="handleDetailEdit"
     />
@@ -170,6 +171,7 @@ import { List, Upload, Plus, EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import type { WorkItem } from '@/api/types'
+import { enrichWorkItem, resolvePriorityId } from '@/utils/workItemFields'
 
 // 子组件
 import WorkItemListView from './WorkItemListView.vue'
@@ -195,9 +197,13 @@ const editDialogVisible = ref(false)
 const editItem = ref<WorkItem | null>(null)
 const editingIndex = ref(-1)
 
-// 详情抽屉
+// 详情抽屉：按索引订阅 store，避免 updateRequirement 换对象后抽屉失步
 const detailDrawerVisible = ref(false)
-const detailItem = ref<WorkItem | null>(null)
+const detailIndex = ref(-1)
+const liveDetailItem = computed(() => {
+  if (detailIndex.value < 0) return null
+  return appStore.requirements[detailIndex.value] ?? null
+})
 
 const progressPercent = computed(() => {
   const p = appStore.importProgress
@@ -219,6 +225,12 @@ function removeItem(id?: string) {
   const index = appStore.requirements.findIndex((item) => item.id === id)
   if (index !== -1) {
     appStore.removeRequirement(index)
+    if (detailIndex.value === index) {
+      detailDrawerVisible.value = false
+      detailIndex.value = -1
+    } else if (detailIndex.value > index) {
+      detailIndex.value -= 1
+    }
   }
 }
 
@@ -226,7 +238,8 @@ function removeItem(id?: string) {
 function openEditDialog(item: WorkItem) {
   editingIndex.value = appStore.requirements.findIndex((r) => r.id === item.id)
   if (editingIndex.value === -1) return
-  editItem.value = { ...item }
+  const latest = appStore.requirements[editingIndex.value]
+  editItem.value = latest ? { ...latest } : { ...item }
   editDialogVisible.value = true
 }
 
@@ -239,6 +252,9 @@ function handleSaveEdit(item: WorkItem) {
       description: item.description,
       type_id: item.type_id,
       priority: item.priority,
+      priority_id: item.priority_id,
+      state_id: item.state_id,
+      state: item.state,
       assignee_name: item.assignee_name,
       estimated_hours: item.estimated_hours,
       start_at: item.start_at,
@@ -250,7 +266,8 @@ function handleSaveEdit(item: WorkItem) {
 
 /** 打开详情抽屉 */
 function openDetailDrawer(item: WorkItem) {
-  detailItem.value = item
+  detailIndex.value = appStore.requirements.findIndex((r) => r.id === item.id)
+  if (detailIndex.value === -1) return
   detailDrawerVisible.value = true
 }
 
@@ -261,17 +278,28 @@ function handleDetailEdit(item: WorkItem) {
 
 /** 添加新工作项 */
 function handleAddItem(item: WorkItem) {
-  appStore.requirements.push(item)
+  const enriched = enrichWorkItem(
+    {
+      ...item,
+      assignee_name: item.assignee_name || appStore.pingcodeUserInfo?.display_name || null,
+    },
+    {
+      types: appStore.workItemTypes,
+      priorities: appStore.workItemPriorities,
+      states: appStore.workItemStates,
+    }
+  )
+  appStore.requirements.push(enriched)
   ElMessage.success('添加成功')
 }
 
 /** 通过索引更新字段（列表视图使用） */
-function handleUpdateByIndex(index: number, field: string, value: string) {
+function handleUpdateByIndex(index: number, field: string, value: string | number) {
   appStore.updateRequirement(index, { [field]: value })
 }
 
 /** 通过行数据更新字段（分组视图使用） */
-function handleUpdateRow(row: WorkItem, field: keyof WorkItem, value: string) {
+function handleUpdateRow(row: WorkItem, field: keyof WorkItem, value: string | number) {
   const index = appStore.requirements.findIndex((item) => item.id === row.id)
   if (index !== -1) {
     appStore.updateRequirement(index, { [field]: value })
@@ -290,7 +318,14 @@ const batchForm = reactive<{ type_id: string; priority: string; assignee_name: s
 function applyBatchEdit() {
   const patch: Partial<WorkItem> = {}
   if (batchForm.type_id) patch.type_id = batchForm.type_id
-  if (batchForm.priority) patch.priority = batchForm.priority
+  if (batchForm.priority) {
+    patch.priority = batchForm.priority
+    patch.priority_id = resolvePriorityId(
+      undefined,
+      batchForm.priority,
+      appStore.workItemPriorities
+    )
+  }
   if (batchForm.assignee_name) patch.assignee_name = batchForm.assignee_name
   if (batchForm.project_name) patch.project_name = batchForm.project_name
 
@@ -304,7 +339,6 @@ function applyBatchEdit() {
   })
 
   ElMessage.success(`已批量更新 ${appStore.requirements.length} 个工作项`)
-  // 重置表单
   batchForm.type_id = ''
   batchForm.priority = ''
   batchForm.assignee_name = ''

@@ -134,9 +134,19 @@ export function useWorkItemMeta() {
   }
 
   /** 获取状态标签 */
-  function getStateLabel(stateId?: string): string {
-    const meta = appStore.workItemStates.find((s) => s.id === stateId)
-    return meta?.name || stateId || '-'
+  function getStateLabel(stateId?: string, stateName?: string | null): string {
+    if (stateName && stateName.trim()) return stateName.trim()
+    const fallback: Record<string, string> = {
+      new: '待办',
+      in_progress: '进行中',
+      done: '已完成',
+    }
+    if (stateId && fallback[stateId]) return fallback[stateId]
+    const meta = appStore.workItemStates.find((s) => s.id === stateId && s.name)
+    if (meta?.name) return meta.name
+    // 禁止把 ObjectId 直接展示给用户
+    if (stateId && /^[a-f0-9]{24}$/i.test(stateId)) return '待办'
+    return stateId || '待办'
   }
 
   /** 格式化日期 */

@@ -29,6 +29,11 @@ export interface WorkItem {
   priority_id?: string
   /** PingCode 状态 ID */
   state_id?: string
+  /**
+   * 状态显示名（LLM 从文档提取，或 enrichment 后回填）。
+   * 文档未说明时可为 null，系统默认「待办」。
+   */
+  state?: string | null
   /** 负责人 ID（PingCode 用户 ID） */
   assignee_id?: string
   /** 负责人姓名（从需求文档中识别） */

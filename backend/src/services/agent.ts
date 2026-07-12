@@ -30,6 +30,8 @@ export interface NormalizedWorkItem {
   start_at: string;
   type_id: string;
   assignee_name: string | null;
+  /** 文档中的状态名；未提及时为 null，前端默认待办 */
+  state: string | null;
   solution_suggestion: string;
 }
 
@@ -136,8 +138,21 @@ function normalizeWorkItems(result: unknown): NormalizedWorkItem[] {
     start_at: item.start_at || currentTime,
     type_id: typeIdAllowList.includes(item.type_id) ? item.type_id : 'story',
     assignee_name: item.assignee_name || null,
+    state: normalizeStateName(item.state),
     solution_suggestion: item.solution_suggestion || '',
   }));
+}
+
+/** 状态名：空串/占位视为未标注 */
+function normalizeStateName(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^(null|undefined|none|n\/a|-)$/i.test(trimmed)) return null;
+  // 拒绝把疑似状态 ID 当作名称
+  if (/^[a-f0-9]{24}$/i.test(trimmed)) return null;
+  return trimmed;
 }
 
 /** 底层调用：返回 LLM 原始解析结果（供非流式和流式复用） */

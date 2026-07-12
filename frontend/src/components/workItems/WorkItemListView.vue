@@ -66,13 +66,29 @@
         </el-select>
       </template>
     </el-table-column>
-    <el-table-column label="负责人" width="100" align="center">
-      <template #default="{ row }">
-        <span class="assignee-text">{{ row.assignee_name || defaultAssignee || '-' }}</span>
+    <el-table-column label="负责人" width="120" align="center">
+      <template #default="{ row, $index }">
+        <el-input
+          :model-value="row.assignee_name || defaultAssignee || ''"
+          size="small"
+          placeholder="负责人"
+          class="cell-input"
+          @change="(v: string) => handleFieldChange($index, 'assignee_name', v)"
+        />
       </template>
     </el-table-column>
-    <el-table-column label="预估工时" width="100" align="center">
-      <template #default="{ row }">{{ row.estimated_hours }}h</template>
+    <el-table-column label="预估工时" width="110" align="center">
+      <template #default="{ row, $index }">
+        <el-input-number
+          :model-value="row.estimated_hours"
+          :min="0"
+          :step="1"
+          size="small"
+          controls-position="right"
+          class="cell-hours"
+          @change="(v: number | undefined) => handleHoursChange($index, v)"
+        />
+      </template>
     </el-table-column>
     <el-table-column label="开始时间" width="110" align="center">
       <template #default="{ row }">{{ formatDate(row.start_at) }}</template>
@@ -112,7 +128,7 @@ const emit = defineEmits<{
   (e: 'detail', item: WorkItem): void
   (e: 'edit', item: WorkItem): void
   (e: 'remove', id: string): void
-  (e: 'update', index: number, field: string, value: string): void
+  (e: 'update', index: number, field: string, value: string | number): void
 }>()
 
 const {
@@ -125,6 +141,10 @@ const {
 function handleFieldChange(index: number, field: string, value: string) {
   emit('update', index, field, value)
 }
+
+function handleHoursChange(index: number, value: number | undefined) {
+  emit('update', index, 'estimated_hours', value ?? 0)
+}
 </script>
 
 <style scoped lang="scss">
@@ -134,12 +154,17 @@ function handleFieldChange(index: number, field: string, value: string) {
   width: 100%;
 }
 
-.cell-select {
+.cell-select,
+.cell-input {
   width: 100%;
 }
 
-.assignee-text {
-  font-size: $font-size-sm;
-  color: $text-secondary;
+.cell-hours {
+  width: 100%;
+
+  :deep(.el-input__wrapper) {
+    padding-left: 8px;
+    padding-right: 28px;
+  }
 }
 </style>
